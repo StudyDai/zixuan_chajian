@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "vue3-chrome-ext",
+  "description": "chrome extension",
+  "version": "0.0.1",
+  "options_page": "options.html",
+  "browser_action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "page": "background.html",
+    "persistent": true 
+  },
+  "permissions": ["http://*/*", "https://*/*", "tabs", "contextMenus", "notifications","webRequest", "webRequestBlocking", "storage", "activeTab", "declarativeContent", "cookies", "downloads"],
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["js/content.js"],
+    "run_at": "document_start"
+  }],
+  "web_accessible_resources": [
+    "js/*",
+    "css/*",
+    "*"
+  ],
+  "content_security_policy": "script-src 'self' 'unsafe-eval' blob:; object-src 'self'"
+}

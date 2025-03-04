@@ -1,0 +1,27 @@
+{
+  "name": "vue3-chrome-ext-template",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "vue-cli-service build --watch",
+    "build": "vue-cli-service build",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@ffmpeg/core": "^0.10.0",
+    "@ffmpeg/ffmpeg": "^0.9.8",
+    "vue": "^3.2.47",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.21.3",
+    "@babel/eslint-parser": "^7.21.3",
+    "@vue/cli-plugin-babel": "~5.0.8",
+    "@vue/cli-service": "~5.0.8",
+    "@vue/compiler-sfc": "^3.2.47",
+    "@vue/eslint-config-standard": "^8.0.1",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.36.0",
+    "eslint-plugin-vue": "^9.9.0"
+  }
+}

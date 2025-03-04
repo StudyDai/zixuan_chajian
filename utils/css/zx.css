@@ -1,0 +1,195 @@
+.dialog_attr {
+    background-color: #fff;
+    /* 这个是用来挪动的 */
+    position: fixed;
+    z-index: 9998;
+    top: 120px;
+    right: 20px;
+    border: 10px solid #000;
+    padding: 15px;
+    font-size: 18px;
+}
+
+.stock_close {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    height: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #000000c2;
+    color: #fff;
+    font-weight: 700;
+    transform: translateY(-100%);
+    box-sizing: border-box;
+    border-top: 10px solid #000;
+    border-left: 10px solid #000;
+    border-right: 10px solid #000;
+}
+
+.stock_close label {
+    flex-shrink: 0;
+}
+
+.stock_close input {
+    width: 55px;
+}
+.stock_close .svg_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    cursor: pointer;
+}
+
+/* 亚马逊下载按钮样式 */
+.amazon_download_btn {
+    background-color: rgb(93, 97, 93);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .5s ease;
+    display: flex;
+    margin-top: 15px;
+    justify-content: center;
+}
+.amazon_download_btn:hover {
+    background-color: rgb(31, 105, 31);
+}
+.text_1 {
+    position: fixed;
+    top: 100px;
+    right: 50px;
+    z-index: 9999;
+}
+
+.temu_fix_logo,
+.amazon_fix_logo {
+    z-index: 9999;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+}
+
+.temu_fix_logo svg,
+.amazon_fix_logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+.temu_fix_logo .temu_menu_ul,
+.amazon_fix_logo .amazon_menu_ul {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.temu_fix_logo .temu_menu_ul .menu_ul_li div,
+.amazon_fix_logo .amazon_menu_ul .amazon_menu_ul_li div {
+    position: relative;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: all .3s linear;
+}
+
+.temu_fix_logo .temu_menu_ul .menu_ul_li div:hover,
+.amazon_fix_logo .amazon_menu_ul .amazon_menu_ul_li div:hover {
+    border-bottom: 1px solid #ccc;
+    color: red;
+    font-weight: 700;
+}
+
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+}
+
+ul li {
+    list-style: none!important;
+}
+
+ul.tableEl {
+    border-top: 2px solid #000;
+    padding-top: 5px;
+    overflow-y: auto;
+    height: 260px;
+}
+
+ul.tableEl ul {
+    margin-bottom: 10px;
+    border-bottom: 2px solid #999;
+}
+
+ul.tableEl ul li {
+    width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 0;
+    font-size: 15px;
+}
+
+.search {
+    position: relative;
+}
+
+div.tip {
+    display: none;
+}
+
+div.visible {
+    display: block;
+}
+
+ul.tableEl {
+    display: block;
+}
+ul.hide {
+    display: none;
+}
+
+.search .line {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 2px;
+    background-color: blue;
+    transform-origin: right top;
+    transform: scaleX(0);
+    
+    transition: transform .3s linear;
+}
+
+.search #search_Stock:focus ~ .line {
+    /* 修改scale */
+    transform-origin: left top;
+    transform: scaleX(1);
+}
+
+#search_Stock {
+    position: relative;
+    padding: 5px;
+    border: none;
+    outline: none;
+}
+
+.close_icon {
+    display: none;
+}
+
+.rate_icon {
+    display: block;
+}

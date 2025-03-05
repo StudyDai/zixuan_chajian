@@ -1318,6 +1318,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     activityResult[currentAct[0].activityList[0].itemSkc].push({
                                         activtiyName: currentAct[0].activityName,
                                         salesNum: currentAct[0].activitySaleStock - previousAct[0].activitySaleStock,
+                                        itemSku: activityItem.itemHuoHao,
                                         dailyPrice: activityItem.itemDelayPrice / 100,
                                         activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
                                     })
@@ -1326,8 +1327,9 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     activityResult[currentAct[0].activityList[0].itemSkc] = [{
                                         activtiyName: currentAct[0].activityName,
                                         salesNum: currentAct[0].activitySaleStock - previousAct[0].activitySaleStock,
+                                        itemSku: activityItem.itemHuoHao,
                                         dailyPrice: activityItem.itemDelayPrice / 100,
-                                        activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === item.itemHuoHao).itemActivePrice / 100
+                                        activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
                                     }]
                                 }
                             }
@@ -1344,18 +1346,18 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     if (argNum >= 1) {
                                         // 证明有出单
                                         let activityItem = cact.activityList[0].child.find(active => {
-                                            let toItem = updateData[cact.activityList[0].itemSkc].find(item => item.itemHuoHao === active.itemHuoHao)
+                                            let toItem = updateData[cact.activityList[0].itemSkc].find(item => item.itemName === active.itemHuoHao)
                                             if (toItem) {
                                                 return true
                                             } else {
                                                 return false
                                             }
                                         })
-                                        debugger;
                                         if (activityResult[cact.activityList[0].itemSkc] && activityResult[cact.activityList[0].itemSkc].length) {
                                             activityResult[cact.activityList[0].itemSkc].push({
                                                 activtiyName: cact.activityName,
                                                 salesNum: cact.activitySaleStock - previous.activitySaleStock,
+                                                itemSku: activityItem.itemHuoHao,
                                                 dailyPrice: activityItem.itemDelayPrice / 100,
                                                 activityPrice: cact.activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
                                             })
@@ -1364,6 +1366,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                             activityResult[cact.activityList[0].itemSkc] = [{
                                                 activtiyName: cact.activityName,
                                                 salesNum: cact.activitySaleStock - previous.activitySaleStock,
+                                                itemSku: activityItem.itemHuoHao,
                                                 dailyPrice: activityItem.itemDelayPrice / 100,
                                                 activityPrice: cact.activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
                                             }]
@@ -1511,20 +1514,31 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     for (const key in format_order) {
                         // 根据skc去对，如果对得上，就直接匹
                        let allChangeActivity = activityResult[key]
-                       allChangeActivity.forEach((activity) => {
-                            // 拿到活动的数量
-                            let activityNum = activity.salesNum
-                            // 拿到活动sku
-                            let activitySku = activity.itemSku
-                            // 默认是大于等于订单数
-                            // 循环所有订单
+                       // 可能没有活动，那么就不走进去
+                       if (allChangeActivity) {
+                            allChangeActivity.forEach((activity) => {
+                                // 拿到活动的数量
+                                let activityNum = activity.salesNum
+                                // 拿到活动sku
+                                let activitySku = activity.itemSku
+                                // 默认是大于等于订单数
+                                // 循环所有订单
+                                format_order[key].forEach((order, index) => {
+                                    console.log(index + 1)
+                                    if (activitySku === order.itemSku) {
+                                        // 加入进去
+                                        sendXLSXData.push([order.orderTime, order.itemSku,order.parentOrderSn, order.dailyPrice, activity.activityPrice, activity.activtiyName, order.salesNum])
+                                    }
+                                })
+                        })
+                       } else {
+                            console.log('这一单不是活动出单')
                             format_order[key].forEach(order => {
-                                if (activitySku === order.itemSku) {
-                                    // 加入进去
-                                    sendXLSXData.push([order.orderTime, order.itemSku,order.parentOrderSn, activity.dailyPrice, activity.activityPrice, activity.activtiyName, order.salesNum])
-                                }
+                                sendXLSXData.push([order.orderTime, order.itemSku,order.parentOrderSn, order.dailyPrice, '', '', order.salesNum])
                             })
-                       })
+                            
+                       }
+
                     }
                     console.log(sendXLSXData)
                     if (params.type === 'download') {
@@ -1583,6 +1597,57 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     goodNums: sendData
                 })
             }
+        }
+    } else if (params.message == 'getWarehouseOder') {
+        const url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+        const myHeader = new Headers()
+        myHeader.set('mallid', currentMallId)
+        myHeader.set('cookie', currentCookie)
+        myHeader.set('Content-Type', 'application/json')
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: myHeader,
+            body: JSON.stringify({
+                "page_number": 1,
+                "page_size": 200,
+                "sort_type": 1,
+                "call_begin_time": 1738339200,
+                "call_end_time": 1740758399
+            })
+        }).then(res => res.json())
+        // 拿下产品信息
+        const result = await fetch(baseURL + '/getGoodList', {
+            method: 'POST',
+            body: JSON.stringify({
+                mallid: currentMallId,
+                cookie: goodListCookie
+            }),
+            headers: myHeader
+        }).then(res => res.json())
+        if (response.success) {
+            // 生成excel,包含订单号和货号
+            let Data = [['订单创建时间', '订单号', '数量', 'spu', '货号', '运单号', '物流公司', '预计运费', '单位']]
+            let status = result.statu
+            response.result.package_info_result_list.forEach(item => {
+                let HuoHao = null, goodName = null
+                if (status === 200) {
+                    HuoHao = result.data.find(resp => resp.productSkuSummaries.find(sku => {
+                        if (sku.productSkuId === item.order_send_info_list[0].product_sku_id) {
+                            goodName = sku.extCode
+                            return true
+                        }
+                    }))
+                }
+                Data.push([item.label_call_time_str, item.order_send_info_list[0].parent_order_sn, item.order_send_info_list[0].quantity, item.order_send_info_list[0].product_spu_id, goodName, item.tracking_number, item.shipping_company_name, item.online_estimated_vo.estimated_amount, item.online_estimated_vo.estimated_currency_code])
+            })
+            // 创建表 输出
+            const wb = XLSX.utils.book_new()
+            // 创建数据
+            const ws = XLSX.utils.aoa_to_sheet(Data)
+            // 写入
+            XLSX.utils.book_append_sheet(wb, ws, '快递面单')
+            // 导出
+            XLSX.writeFile(wb, './半托面单.xlsx')
         }
     }
 })

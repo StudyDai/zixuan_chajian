@@ -19,6 +19,7 @@
         <button @click="getAllGoodAndActivity" :disabled="CanClick">开启记录</button>
         <button @click="getCurrentActivity">更新记录</button>
         <button @click="getCurrentActivity('download')">导出记录</button>
+        <button @click="getCurrentOrder">获取当月面单</button>
       </div>
       <div class="get_good_excel">
           <button @click="getRate" class="excel-button">获取商品售后率表格</button>
@@ -144,6 +145,11 @@ export default {
     }
   },
   methods: {
+    getCurrentOrder() {
+      chrome.runtime.sendMessage({
+        message: 'getWarehouseOder'
+      })
+    }, 
     getAllGoodAndActivity() {
       localStorage.setItem('keepOpen', true)
       this.CanClick = true

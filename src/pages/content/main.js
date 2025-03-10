@@ -159,6 +159,31 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 
 // 插入页面中
 onload = () => {
+    // 插入一个按钮用来进行监听用
+    function addNetworkBtn() {
+        let btn = document.createElement('div')
+        btn.classList.add('getNetwork')
+        btn.innerText = '监听网络'
+        let btn2 = document.createElement('div')
+        btn2.classList.add('downloadWork')
+        btn2.innerText = '下载监听到的数据'
+        let btn3 = document.createElement('div')
+        btn3.classList.add('downloadAliexpress')
+        btn3.innerText = '导出为Excel表格'
+        btn3.onclick = function() {
+            chrome.runtime.sendMessage({
+                message: 'download_aliexpress_order',
+                data: localStorage.getItem('cacheAliexpress')
+            })
+        }
+        document.body.appendChild(btn)
+        document.body.appendChild(btn2)
+        document.body.appendChild(btn3)
+    }
+    const re = /https:\/\/csp\.aliexpress\.com\/m_apps\/logistics/
+    if (re.test(location.href)) {
+        addNetworkBtn()
+    }
     // 当前如果是temu.com的话就可以显示TEMU的下载图标 
     // https://seller.kuajingmaihuo.com/
     // video--video--lsI7y97
@@ -949,7 +974,7 @@ onload = () => {
     getCookieByDianXiaoMi()
 
     // 插入js文件，暂时不用用到这个，这个结合那个网络拦截一起用
-    // injectFn(chrome.runtime.getURL('/js/zx.js'), "head")
+    injectFn(chrome.runtime.getURL('/js/zx.js'), "head", "javascript")
 
     function insertRate(value, title) {
         const node = document.createElement('div')

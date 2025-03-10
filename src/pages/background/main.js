@@ -17,7 +17,7 @@ let goodListCookie = ''
 // 发货时的产品的尺寸数据
 let sendOrderData = null
 // 这个是导出订单的数组
-let sendXLSXData = [['订单日期', 'SKU号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
+let sendXLSXData = [['订单日期', 'SKU号', 'SKC号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
 let PaiPaiWrehouseId = [
     {
         "id": 1131,
@@ -52,7 +52,6 @@ async function getRate() {
     })
     return result
 }
-
 // 时间格式化
 function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
     const padZero = (num) => (num < 10 ? '0' + num : num);
@@ -432,7 +431,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     if (params.type === 'shipout') {
                         xlsxData.push([
                             item.order_send_info_list[0].parent_order_sn,
-                            currentOrder.orderList[0].extCodeList[0],
+                            currentOrder?.orderList[0].extCodeList[0],
                             item.order_send_info_list[0].quantity,
                             '',
                             '',
@@ -451,7 +450,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             '',
                             item.tracking_number,
                             item.shipping_company_name,
-                            '',
+                            item.warehouse_name,
                             '',
                             ''
                         ]);
@@ -465,7 +464,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             '自有面单',
                             item.shipping_company_name,
                             item.tracking_number,
-                            currentOrder.orderList[0].extCodeList[0],
+                            currentOrder?.orderList[0].extCodeList[0],
                             '',
                             item.order_send_info_list[0].quantity,
                             '',
@@ -561,6 +560,9 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         console.log(params.data, '我是id')
         currentCookie = params.data.cookie
         currentMallId = params.data.id
+        // 存储到本地
+        localStorage.setItem('normalCookie', params.data.cookie)
+        localStorage.setItem('mallid', currentMallId)
     } else if (params.message == "customPath") {
         // 测试代码,测试chrome.downloads用的
         // console.log(params.data, '我是路径')
@@ -716,6 +718,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         }
     } else if (params.message == 'getGoodRate') {
         console.log(params.data)
+        // 这个是算售后率的 有点点瑕疵 后续要改进 查询七月份数据的时候 出现了五单的收回没拿到的情况
         if (!params.data.startTime && !params.data.endTime) {
             console.log('没选时间,弹窗')
             alert('没有选择开始和结束的时间')
@@ -741,7 +744,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 // 有订单的数据
                 if (backResult.result.mmsPageVO) {
                     list.push(...backResult.result.mmsPageVO.data)
-                    if (data.pageNumber * 500 < backResult.result.mmsPageVO.totalCount) {
+                    if (data.pageNumber * 100 < backResult.result.mmsPageVO.totalCount) {
                         // 继续拿
                         currentNum += 1
                         await delayFn()
@@ -836,7 +839,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     body: JSON.stringify({
                         "pageNumber": 1,
                         "pageSize": 100,
-                        "startCreatedTime": 1735660800000, //这个是毫秒
+                        "startCreatedTime": startTime, //这个是毫秒
                         "endCreatedTime": new Date().getTime(),
                         "groupSearchType": 2110,
                         "timeSearchType": 5000,
@@ -854,7 +857,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         await getAllBackList(back_url, backList, {
                             "pageNumber": resultNum,
                             "pageSize": 100,
-                            "startCreatedTime": 1735660800000, //这个是毫秒
+                            "startCreatedTime": startTime, //这个是毫秒
                             "endCreatedTime": new Date().getTime(),
                             "groupSearchType": 2110,
                             "timeSearchType": 5000,
@@ -1142,11 +1145,11 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             // 先进行格式化
             if (params.type === 'download') {
                 // 要导出, 就要重置下XLSXdata
-                sendXLSXData = [['订单日期', 'SKU号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
+                sendXLSXData = [['订单日期', 'SKU号', 'SKC号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
             }
             let format_result = result.data.map(item => ({
-                linkSkc: item.productSkcId,
-                linkSku: item.productSkuSummaries.map(sku => ({
+                    linkSkc: item.productSkcId,
+                    linkSku: item.productSkuSummaries.map(sku => ({
                     itemName: sku.extCode,
                     itemSku: sku.productSkuId,
                     itemStock: sku.productSkuSemiManagedStock.skuStockQuantity,
@@ -1154,6 +1157,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     itemPrice: sku.siteSupplierPrices[0].supplierPrice / 100
                 }))
             }))
+            // 这个就是库存发生变化的
             console.log('格式化后, 开始查询库存变化', format_result)
             // 开始查询库存, 拿到我保存的数据
             let updateData = {}
@@ -1189,7 +1193,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             // 看看有没有变化
             console.log(updateData)
             if (Object.keys(updateData).length) {
-                // 证明出单了, 去看我的活动上次的
+                // 证明出单了, 去看我的活动上次的, 这个地方要存储报名的活动时间
                 let prevactivityList = JSON.parse(localStorage.getItem(currentMallId + 'canUseActivity'))
                 // 这次的活动
                 // 去看看里面有哪些库存
@@ -1201,13 +1205,24 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     }),
                     headers: myHeader
                 }).then(res => res.json())
+                // enrollTime 是报名时间
                 // 抽取有用的,并且格式化下
                 if (activityList.statu === 200) {
-                    let canUseActivity = activityList.data.filter(activity => activity.canEditStock).map(item => ({
+                    // 补零
+                    function startZero(num) {
+                        return num < 10 ? '0' + num : num
+                    }
+                    // 拿到这个月一号
+                    let Times = new Date()
+                    let filterTime = new Date(`${Times.getFullYear()}-${Times.getMonth() + 1}-1 00:00:00`)
+                    console.log(activityList)
+                    let canUseActivity = activityList.data.filter(activity => activity.assignSessionList[0]?.endTime >= filterTime).map(item => ({
                         activityName: (item.activityThematicName ? item.activityThematicName + '-' : '') + item.activityTypeName,
                         activitydstartTime: item.assignSessionList[0].startDateStr,
                         activitydendTime: item.assignSessionList[0].endDateStr,
                         activityStock: item.activityStock,
+                        activitySkc: item.skcList[0].skcId,
+                        activityGetTime: new Date(item.enrollTime).getFullYear() + '-' + (new Date(item.enrollTime).getMonth() + 1) + '-' + new Date(item.enrollTime).getDate() + ' ' + `${startZero(new Date(item.enrollTime).getHours())}:${startZero(new Date(item.enrollTime).getMinutes())}:${startZero(new Date(item.enrollTime).getSeconds())}`,
                         activityArgStock: item.remainingActivityStock,
                         activitySaleStock: item.activityStock - item.remainingActivityStock,
                         activityList: item.skcList.map(order => ({ itemSkc: order.skcId, child: order.skuList.map(child => ({ itemHuoHao: child.extCode, itemDelayPrice: child.sitePriceList[0].dailyPrice, itemActivePrice: child.sitePriceList[0].activityPrice, itemSku: child.skuId })) }))
@@ -1216,176 +1231,14 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     let currentT = new Date().getTime()
                     canUseActivity = canUseActivity.filter(item => new Date(item.activitydstartTime).getTime() <= currentT)
                     let activityResult = {}
-                    for (const key in updateData) {
-                        console.log(key)
-                        // 现在的活动信息 可能包含多个活动
-                        let currentAct = canUseActivity.filter(active => {
-                            return active.activityList[0].itemSkc == key
-                        })
-                        // 昨天的活动信息 可能包含多个活动
-                        let previousAct = prevactivityList.filter(prev => {
-                            return prev.activityList[0].itemSkc == key
-                        })
-                        console.log(currentAct)
-                        console.log('-----------------')
-                        console.log(previousAct)
-                        if (!currentAct.length && !previousAct.length) {
-                            // 证明不是活动出单，那么就循环
-                            updateData[key].forEach(item => {
-                                if(activityResult[key] && activityResult[key].length) {
-                                    activityResult[key].push({
-                                        activtiyName: item.activityName,
-                                        itemSku: item.itemName,
-                                        salesNum: item.itemCostNum,
-                                        dailyPrice: item.itemdailyPrice,
-                                        activityPrice: null
-                                    })
-                                }
-                                else {
-                                    activityResult[key] = [{
-                                        activtiyName: item.activityName,
-                                        itemSku: item.itemName,
-                                        salesNum: item.itemCostNum,
-                                        dailyPrice: item.itemdailyPrice,
-                                        activityPrice: null
-                                    }]
-                                }
-                            })
-                            continue
-                        }
-                        // 新报名的活动, 看看是不是有变化,没变化就不填它
-                        if (currentAct.length === 1 && !previousAct.length) {
-                            if (currentAct[0].activitySaleStock) {
-                                updateData[key].forEach(item => {
-                                    if(activityResult[currentAct[0].activityList[0].itemSkc] && activityResult[currentAct[0].activityList[0].itemSkc].length) {
-                                        activityResult[currentAct[0].activityList[0].itemSkc].push({
-                                            activtiyName: currentAct[0].activityName,
-                                            itemSku: item.itemName,
-                                            salesNum: item.itemCostNum,
-                                            dailyPrice: item.itemdailyPrice,
-                                            activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === item.itemName).itemActivePrice / 100,
-                                        })
-                                    }
-                                    else {
-                                        activityResult[currentAct[0].activityList[0].itemSkc] = [{
-                                            activtiyName: currentAct[0].activityName,
-                                            itemSku: item.itemName,
-                                            salesNum: item.itemCostNum,
-                                            dailyPrice: item.itemdailyPrice,
-                                            activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === item.itemName).itemActivePrice / 100
-                                        }]
-                                    }
-                                })
-                            }
-                        } 
-                        else if (currentAct.length > 1 && !previousAct.length) {
-                            // 这些就是有多个活动的
-                            updateData[key].forEach(item => {
-                                currentAct.forEach(cAct => {
-                                    // 看看每个活动是不是都有变化,如果只有一个,那就直接看那一个就行
-                                    if (!cAct.activitySaleStock) return
-                                    // 证明活动有变化,那么就存储起来
-                                    if (activityResult[cAct.activityList[0].itemSkc].length === 1) {
-                                        activityResult[cAct.activityList[0].itemSkc][0].activtiyName.push(cAct.activityName)
-                                        activityResult[cAct.activityList[0].itemSkc][0].salesNum.push(cAct.salesNum)
-                                    } else {
-                                        activityResult[cAct.activityList[0].itemSkc] = [{
-                                            activtiyName: [cAct.activityName],
-                                            itemSku: item.itemName,
-                                            salesNum: [item.itemCostNum],
-                                            dailyPrice: [item.itemdailyPrice],
-                                            activityPrice: [cAct.activityList[0].child.find(sku => sku.itemHuoHao === item.itemName).itemActivePrice / 100]
-                                        }]
-                                    }
-                                })
-                            })
-                        }
-                        // 有新活动也有老活动
-                        if (currentAct.length === 1 && previousAct.length === 1) {
-                            if (currentAct[0].activitySaleStock - previousAct[0].activitySaleStock >= 1) {
-                                // 证明卖出去了, 直接对比货号
-                                let activityItem = currentAct[0].activityList[0].child.find(active => {
-                                    console.log
-                                    let toItem = updateData[key].find(item => item.itemName === active.itemHuoHao)
-                                    if (toItem) {
-                                        return true
-                                    } else {
-                                        return false
-                                    }
-                                })
-                                console.log(currentAct[0])
-                                if (activityResult[currentAct[0].activityList[0].itemSkc] && activityResult[currentAct[0].activityList[0].itemSkc].length) {
-                                    activityResult[currentAct[0].activityList[0].itemSkc].push({
-                                        activtiyName: currentAct[0].activityName,
-                                        salesNum: currentAct[0].activitySaleStock - previousAct[0].activitySaleStock,
-                                        itemSku: activityItem.itemHuoHao,
-                                        dailyPrice: activityItem.itemDelayPrice / 100,
-                                        activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
-                                    })
-                                }
-                                else {
-                                    activityResult[currentAct[0].activityList[0].itemSkc] = [{
-                                        activtiyName: currentAct[0].activityName,
-                                        salesNum: currentAct[0].activitySaleStock - previousAct[0].activitySaleStock,
-                                        itemSku: activityItem.itemHuoHao,
-                                        dailyPrice: activityItem.itemDelayPrice / 100,
-                                        activityPrice: currentAct[0].activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
-                                    }]
-                                }
-                            }
-                        } else {
-                            // 新老活动都有,但是不止一个
-                            currentAct.forEach(cact => {
-                                // 拿到昨天的活动数据
-                                let previous = previousAct.find(item => item.activityName === cact.activityName)
-                                // 分找到和没找到的情况 如果找到了才走下面的逻辑, 如果没有找到,那么直接计算我这个活动是不是出单了
-                                if (previous) {
-                                    // 证明找到了
-                                    // 去进行互减
-                                    let argNum = cact.activitySaleStock - previous.activitySaleStock
-                                    if (argNum >= 1) {
-                                        // 证明有出单
-                                        let activityItem = cact.activityList[0].child.find(active => {
-                                            let toItem = updateData[cact.activityList[0].itemSkc].find(item => item.itemName === active.itemHuoHao)
-                                            if (toItem) {
-                                                return true
-                                            } else {
-                                                return false
-                                            }
-                                        })
-                                        if (activityResult[cact.activityList[0].itemSkc] && activityResult[cact.activityList[0].itemSkc].length) {
-                                            activityResult[cact.activityList[0].itemSkc].push({
-                                                activtiyName: cact.activityName,
-                                                salesNum: cact.activitySaleStock - previous.activitySaleStock,
-                                                itemSku: activityItem.itemHuoHao,
-                                                dailyPrice: activityItem.itemDelayPrice / 100,
-                                                activityPrice: cact.activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
-                                            })
-                                        }
-                                        else {
-                                            activityResult[cact.activityList[0].itemSkc] = [{
-                                                activtiyName: cact.activityName,
-                                                salesNum: cact.activitySaleStock - previous.activitySaleStock,
-                                                itemSku: activityItem.itemHuoHao,
-                                                dailyPrice: activityItem.itemDelayPrice / 100,
-                                                activityPrice: cact.activityList[0].child.find(sku => sku.itemHuoHao === activityItem.itemHuoHao).itemActivePrice / 100
-                                            }]
-                                        }
-                                    }
-                                } else {
-                                    // 证明没有找到
-                                }
-                            })
-                        }
-                    }
-                    // 拿面单数据
-                    console.log(activityResult)
                     // 这个地方去拿订单列表
                     const order_url = 'https://agentseller-us.temu.com/kirogi/bg/mms/recentOrderList'
                     // 拿到所有的已发货
                     let globalOrderList =[]
                     // 拿到所有的未发货
                     let globalErrorList = []
+                    // 拿到所有已签收
+                    let allFinialList = []
                     let currentPage = 1
                     let currentTime = new Date()
                     let myHeader = new Headers()
@@ -1436,15 +1289,288 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         'parentOrderTimeEnd': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()} 23:59:59`).getTime() / 1000,
                         'parentOrderTimeStart': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-01 00:00:00`).getTime() / 1000
                     })
-                    // 拿到已经发货的 40 -38 等于 2
+                    await getData(order_url, 1, allFinialList, {
+                        "fulfillmentMode": 0,
+                        "pageNumber": 1,
+                        "pageSize": 100,
+                        "queryType": 5,
+                        "sortType": 3,
+                        "parentOrderTimeStart": new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-01 00:00:00`).getTime() / 1000,
+                        "parentOrderTimeEnd": new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()} 23:59:59`).getTime() / 1000,
+                        "timeZone": "UTC+8",
+                        "parentAfterSalesTag": 0,
+                        "sellerNoteLabelList": []
+                      })
                     let alreadySendNum = allOrderNum - globalErrorList.length
                     let orderList = globalOrderList.slice(0, alreadySendNum)
                     // 这个拿到orderList就是我已发货里面的数据
-                    console.log(orderList, globalErrorList)
-                    let format_order = {}
+                    console.log('3月1号到今天的所有订单', orderList, globalErrorList, allFinialList)
+                    let activitySaleList = {}
+                    // 这个地方去对比哪些活动出单了的
+                    canUseActivity.forEach(item => {
+                        // 这个地方要对比 就是我要先根据SKC拿 然后去判断时间和名字是不是一样
+                        let sameActivity = prevactivityList.find(prev => prev.activitySkc === item.activitySkc && prev.activityName === item.activityName && prev.activityGetTime === item.activityGetTime)
+                        // 如果拿到了,就比对数据是不是有变化
+                        if (sameActivity) {
+                            let num = item.activitySaleStock - sameActivity.activitySaleStock 
+                            if (num) {
+                                // 证明就是大于1的,那么就打印看看
+                                // 判断下我是不是这个skc就只有活动 可能有多个活动出单
+                                if (!activitySaleList[item.activitySkc]) {
+                                    // 如果没有就先格式化
+                                    activitySaleList[item.activitySkc] = []
+                                }
+                                // 直接推进去
+                                activitySaleList[item.activitySkc].push({
+                                    activityGetTime: item.activityGetTime,
+                                    activitydstartTime: item.activitydstartTime,
+                                    activitydendTime: item.activitydendTime,
+                                    saleNum: num,
+                                    activityName: item.activityName,
+                                    childList: item.activityList
+                                })
+                                // console.log('总共卖了多少单',num, '我的skc是什么', item.activitySkc, item)
+                            }
+                        } else {
+                            // 新活动 看看新活动是不是有消耗
+                            let num = item.activitySaleStock
+                            if (num) {
+                                // 证明消耗了,那么就都弄一个对象存储起来, 要判断下我是不是有多个活动
+                                if (!activitySaleList[item.activitySkc]) {
+                                    // 如果没有就先格式化
+                                    activitySaleList[item.activitySkc] = []
+                                }
+                                // 直接推进去
+                                activitySaleList[item.activitySkc].push({
+                                    activityGetTime: item.activityGetTime,
+                                    activitydstartTime: item.activitydstartTime,
+                                    activitydendTime: item.activitydendTime,
+                                    saleNum: item.activitySaleStock,
+                                    activityName: item.activityName,
+                                    childList: item.activityList
+                                })
+                            }
+                            // console.log('我是新活动', item.activityName, '我的skc是', item.activitySkc, '这是我的所有数据', item)
+                        }
+                    })
+                    console.log('格式化之后的所有活动出单都在这里', activitySaleList)
+                    // 这个就是已经发走的
                     if (orderList.length) {
+                        orderList.forEach(item => {
+                            // 开始看每一单的下单事件以及对应的活动时间进行匹配
+                            let order_time = item.parentOrderMap.parentConfirmTimeStr
+                            // 拿到订单的时间戳
+                            let order_timestramp = new Date(order_time).getTime()
+                            // 拿到订单的sku
+                            let order_sku = item.orderList[0].extCodeList[0]
+                            // 拿到订单的skc
+                            let order_skc = item.orderList[0].productInfoList[0].productSkcId
+                            // 拿到订单的数量
+                            let order_num = item.orderList[0].quantity
+                            // 拿到这个Skc报名的活动
+                            let activity_list = activitySaleList[order_skc]
+                            // 拿到那个GetTime最早的,肯定是出的他的单
+                            // 活动报名时间
+                            let activity_active = null
+                            let current_order_sku = null
+                            activity_list.forEach(active_item => {
+                                let start_time = new Date(active_item.activitydstartTime).getTime()
+                                let end_time = new Date(active_item.activitydendTime).getTime()
+                                let create_time = new Date(active_item.activityGetTime).getTime()
+                                console.log(end_time, order_timestramp)
+                                // 如果可售的数量不够当前的订单,直接下一个
+                                if (active_item.saleNum < order_num) {
+                                    // 这个活动肯定不可能出这单了
+                                    return
+                                }
+                                // 直接看我开始的时候,是不是比我的订单生成的时间早,并且活动期间还需要比我的订单大的,是的话就先筛选出来
+                                if ((start_time < order_timestramp) && !activity_active && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                    // 证明这个开始时间是在我的订单之前,那么就可以先保存来
+                                    activity_active = active_item
+                                    current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                } else if (start_time < order_timestramp && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                    // 证明已经存在一个活动了,所以现在要对比
+                                    // 拿到当前活动的价格
+                                    let child_list = active_item.childList[0].child
+                                    // 拿到当前产品的价格
+                                    let current_item = child_list.find(item => item.itemHuoHao === order_sku)
+                                    // 拿到上一次保存的活动价
+                                    let prev_list = activity_active.childList[0].child
+                                    // 拿到上一个活动的价格
+                                    let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
+                                    // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
+                                    if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                        // 替换掉
+                                        activity_active = active_item
+                                        current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                    }
+                                }
+                            })
+                            // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
+                            // 判断下是不是有活动, 也有的单不是活动来的
+                            if (activity_active) {
+                                // 有活动才走这个
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                activity_active.saleNum -= order_num
+                            } else {
+                                // 没有活动的, 就直接录入平时的价格
+                                let goodItem = format_result.find(resp => resp.linkSkc == order_skc)
+                                // 拿日常价格
+                                let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                            }
+                            // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
+                        })
                     }
+                    // 这个还没发走
                     if (globalErrorList.length) {
+                        globalErrorList.forEach(item => {
+                            // 开始看每一单的下单事件以及对应的活动时间进行匹配
+                            let order_time = item.parentOrderMap.parentConfirmTimeStr
+                            // 拿到订单的时间戳
+                            let order_timestramp = new Date(order_time).getTime()
+                            // 拿到订单的sku
+                            let order_sku = item.orderList[0].extCodeList[0]
+                            // 拿到订单的skc
+                            let order_skc = item.orderList[0].productInfoList[0].productSkcId
+                            // 拿到订单的数量
+                            let order_num = item.orderList[0].quantity
+                            // 拿到这个Skc报名的活动
+                            let activity_list = activitySaleList[order_skc]
+                            console.log(activity_list, activitySaleList, order_skc)
+                            // 拿到那个GetTime最早的,肯定是出的他的单
+                            // 活动报名时间
+                            let activity_active = null
+                            let current_order_sku = null
+                            // 也有没报活动的
+                            if (activity_list){
+                                activity_list.forEach(active_item => {
+                                    let start_time = new Date(active_item.activitydstartTime).getTime()
+                                    let end_time = new Date(active_item.activitydendTime).getTime()
+                                    let create_time = new Date(active_item.activityGetTime).getTime()
+                                    console.log(end_time, order_timestramp)
+                                    // 如果可售的数量不够当前的订单,直接下一个
+                                    if (active_item.saleNum < order_num) {
+                                        // 这个活动肯定不可能出这单了
+                                        return
+                                    }
+                                    // 直接看我开始的时候,是不是比我的订单生成的时间早,并且活动期间还需要比我的订单大的,是的话就先筛选出来
+                                    if ((start_time < order_timestramp) && !activity_active && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                        // 证明这个开始时间是在我的订单之前,那么就可以先保存来
+                                        activity_active = active_item
+                                        current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                    } else if (start_time < order_timestramp && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                        // 证明已经存在一个活动了,所以现在要对比
+                                        // 拿到当前活动的价格
+                                        let child_list = active_item.childList[0].child
+                                        // 拿到当前产品的价格
+                                        let current_item = child_list.find(item => item.itemHuoHao === order_sku)
+                                        // 拿到上一次保存的活动价
+                                        let prev_list = activity_active.childList[0].child
+                                        // 拿到上一个活动的价格
+                                        let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
+                                        // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
+                                        if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                            // 替换掉
+                                            activity_active = active_item
+                                            current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                        }
+                                    }
+                                })
+                            }
+                            // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
+                            // 判断下是不是有活动, 也有的单不是活动来的
+                            if (activity_active) {
+                                // 有活动才走这个
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                activity_active.saleNum -= order_num
+                            } else {
+                                // 没有活动的, 就直接录入平时的价格
+                                let goodItem = format_result.find(resp => resp.linkSkc == order_skc)
+                                // 拿日常价格
+                                let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
+                                if (!order_skc) {
+                                    debugger;   
+                                }
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                            }
+                            // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
+                        })
+                    }
+                    // 已签收
+                    if (allFinialList.length) {
+                        allFinialList.forEach(item => {
+                            // 开始看每一单的下单事件以及对应的活动时间进行匹配
+                            let order_time = item.parentOrderMap.parentConfirmTimeStr
+                            // 拿到订单的时间戳
+                            let order_timestramp = new Date(order_time).getTime()
+                            // 拿到订单的sku
+                            let order_sku = item.orderList[0].extCodeList[0]
+                            // 拿到订单的skc
+                            let order_skc = item.orderList[0].productInfoList[0].productSkcId
+                            // 拿到订单的数量
+                            let order_num = item.orderList[0].quantity
+                            // 拿到这个Skc报名的活动
+                            let activity_list = activitySaleList[order_skc]
+                            console.log(activity_list, activitySaleList, order_skc)
+                            // 拿到那个GetTime最早的,肯定是出的他的单
+                            // 活动报名时间
+                            let activity_active = null
+                            let current_order_sku = null
+                            // 也有没报活动的
+                            if (activity_list){
+                                activity_list.forEach(active_item => {
+                                    let start_time = new Date(active_item.activitydstartTime).getTime()
+                                    let end_time = new Date(active_item.activitydendTime).getTime()
+                                    let create_time = new Date(active_item.activityGetTime).getTime()
+                                    console.log(end_time, order_timestramp)
+                                    // 如果可售的数量不够当前的订单,直接下一个
+                                    if (active_item.saleNum < order_num) {
+                                        // 这个活动肯定不可能出这单了
+                                        return
+                                    }
+                                    // 直接看我开始的时候,是不是比我的订单生成的时间早,并且活动期间还需要比我的订单大的,是的话就先筛选出来
+                                    if ((start_time < order_timestramp) && !activity_active && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                        // 证明这个开始时间是在我的订单之前,那么就可以先保存来
+                                        activity_active = active_item
+                                        current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                    } else if (start_time < order_timestramp && (end_time > order_timestramp) && (create_time < order_timestramp)) {
+                                        // 证明已经存在一个活动了,所以现在要对比
+                                        // 拿到当前活动的价格
+                                        let child_list = active_item.childList[0].child
+                                        // 拿到当前产品的价格
+                                        let current_item = child_list.find(item => item.itemHuoHao === order_sku)
+                                        // 拿到上一次保存的活动价
+                                        let prev_list = activity_active.childList[0].child
+                                        // 拿到上一个活动的价格
+                                        let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
+                                        // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
+                                        if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                            // 替换掉
+                                            activity_active = active_item
+                                            current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                        }
+                                    }
+                                })
+                            }
+                            // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
+                            // 判断下是不是有活动, 也有的单不是活动来的
+                            if (activity_active) {
+                                // 有活动才走这个
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                activity_active.saleNum -= order_num
+                            } else {
+                                // 没有活动的, 就直接录入平时的价格
+                                let goodItem = format_result.find(resp => resp.linkSkc == order_skc)
+                                // 拿日常价格
+                                let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
+                                if (!order_skc) {
+                                    debugger;   
+                                }
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                            }
+                            // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
+                        })
                     }
                     console.log(sendXLSXData)
                     if (params.type === 'download') {
@@ -1517,8 +1643,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 "page_number": 1,
                 "page_size": 200,
                 "sort_type": 1,
-                "call_begin_time": 1738339200,
-                "call_end_time": 1740758399
+                "call_begin_time": 1735660800,
+                "call_end_time": 1738339199
             })
         }).then(res => res.json())
         // 拿下产品信息
@@ -1555,6 +1681,98 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             // 导出
             XLSX.writeFile(wb, './半托面单.xlsx')
         }
+    } else if (params.message == 'download_aliexpress_order') {
+        // 要多加一行
+        let xlsxData = JSON.parse(params.data)
+        xlsxData.unshift([
+            'Order NO',
+            'SKU',
+            'SKU Qty',
+            'Tag',
+            'Request Ship Date',
+            'Recipient Name',
+            'Recipient Company',
+            'Recipient Address Line 1',
+            'Recipient Address Line 2',
+            'Recipient State',
+            'Recipient City',
+            'Recipient ZipCode',
+            'Recipient Country',
+            'Recipient Phone',
+            'Recipient Email',
+            'Request Shipping Service',
+            'Warehouse Customized Service Name',
+            'Signature Option',
+            'Tracking Number',
+            'Shipping Carrier',
+            'Insurance',
+            'Cod',
+            'Notes'
+        ])
+        const wb = XLSX.utils.book_new()
+        // 生成excel对应的数据
+        const ws = XLSX.utils.aoa_to_sheet(xlsxData)
+        // 添加进去
+        XLSX.utils.book_append_sheet(wb, ws, '速卖通批量发货订单')
+        // 导出
+        XLSX.writeFile(wb, './发货订单/速卖通发货单.xlsx')
+    } else if (params.message == 'getOrderBySn') {
+        const allList = params.data
+        console.log(allList, allList.length)
+        // 现在要根据传递过来的cookie和mallid去查询订单了
+        const myHeader = new Headers()
+        myHeader.append('cookie', currentCookie)
+        myHeader.append('mallid', currentMallId)
+        myHeader.append('content-type', 'application/json')
+        // 所有符合的订单存储起来
+        let allGoodOrder = []
+        async function getOrderBySn(list) {
+            // 拿上个月的回款 那么就是1月1号到3月1号的订单 里面就包含了所有的回款订单
+            const result = await fetch('https://agentseller-us.temu.com/kirogi/bg/mms/recentOrderList', {
+                method: 'post',
+                headers: myHeader,
+                body: JSON.stringify({
+                    "fulfillmentMode": 0,
+                    "pageNumber": 1,
+                    "pageSize": 100,
+                    "queryType": 5,
+                    "sortType": 3,
+                    "parentOrderSnList": list,
+                    "timeZone": "UTC+8",
+                    "parentAfterSalesTag": 0,
+                    "sellerNoteLabelList": []
+                  })
+            }).then(res => res.json())
+            allGoodOrder.push(...result.result.pageItems.map(item => ({
+                '订单号': item.parentOrderMap.parentOrderSn,
+                '订单创建时间': item.parentOrderMap.parentConfirmTimeStr,
+                '产品货号': item.orderList[0].extCodeList[0]
+            })))
+        }
+        // 一次只能拿100条,先拿一百条看看效果
+        let allCount = Math.ceil(allList.length / 100)
+        for (let index = 0; index < allCount; index++) {
+            await getOrderBySn(allList.slice(index * 100, (index + 1) * 100).map(item => item.orderId))
+        }
+        // 这个地方再匹配下收入
+        let downFileList = [['订单号', '订单创建时间', '产品货号', '产品回款']]
+        console.log(allGoodOrder)
+        allGoodOrder.forEach(item => {
+            let order = allList.find(list => list.orderId == item['订单号'])
+            if (order) {
+                // 添加数据
+                downFileList.push([order.orderId, item['订单创建时间'], item['产品货号'], order.orderPrice])
+            }
+        })
+        console.log(downFileList)
+        // 导出
+        const wb = XLSX.utils.book_new()
+        // 读取
+        const ws = XLSX.utils.aoa_to_sheet(downFileList)
+        // 写入
+        XLSX.utils.book_append_sheet(wb, ws, '回款数据表')
+        // 导出
+        XLSX.writeFile(wb, '回款数据对照表/data_diff_sheet.xlsx')
     }
 })
 
@@ -1613,11 +1831,6 @@ async function downloadAmazonVideo(list) {
 function ChineseToCode(font) {
     return encodeURIComponent(font)
 }
-
-function getEachData() {
-
-}
-
 
 // 这个地方就是去登录
 async function LoginByPhone(options) {

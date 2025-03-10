@@ -20,6 +20,8 @@
         <button @click="getCurrentActivity">更新记录</button>
         <button @click="getCurrentActivity('download')">导出记录</button>
         <button @click="getCurrentOrder">获取当月面单</button>
+        <button @click="getOrderByAccount">根据回款匹配订单</button>
+        <input type="file" style="visibility: hidden;" ref="fileIpt"  />
       </div>
       <div class="get_good_excel">
           <button @click="getRate" class="excel-button">获取商品售后率表格</button>
@@ -133,6 +135,26 @@ export default {
     }
   },
   mounted() {
+    let baseURL = 'http://192.168.188.47:8889'
+    this.$refs.fileIpt.addEventListener('change', async (event) => {
+      console.log('文件上传了,看看', event.target.files)
+      let formData = new FormData()
+      let cookie = localStorage.getItem('normalCookie')
+      let mallid = localStorage.getItem('mallid')
+      formData.append('file', event.target.files[0])
+      const result = await fetch(baseURL + '/getOrderByAccount?cookie=' + cookie + '&mallid=' + mallid , {
+          method: 'post',
+          body: formData
+      }).then(res => res.json())
+      // 查看返回之后的数据
+      console.log('这是返回的数据', result)
+      if (result.statu === 200) {
+        chrome.runtime.sendMessage({
+          message: 'getOrderBySn',
+          data: result.data
+        })
+      }
+    })
     // 感觉这个地方直接算
     const times = localStorage.getItem('times') ?? 0
     // 当前时间
@@ -150,6 +172,10 @@ export default {
         message: 'getWarehouseOder'
       })
     }, 
+    getOrderByAccount() {
+      // 要选择一个excel文件
+      this.$refs.fileIpt.click()     
+    },
     getAllGoodAndActivity() {
       localStorage.setItem('keepOpen', true)
       this.CanClick = true

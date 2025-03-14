@@ -159,6 +159,29 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 
 // 插入页面中
 onload = () => {
+    // 当进入shipout分仓页面的时候,提供一个按钮给导出订单
+    let shipoutReg = /https:\/\/oms\.shipout\.com\/b\/#\/order\/batch-fulfillment/
+    let shipout_timer = null
+    shipout_timer = setInterval(() => {
+        if (shipoutReg.test(location.href)) {
+            clearInterval(shipout_timer)
+            // 证明是对了, 给background说
+            let div = document.createElement('div')
+            div.classList.add('download_shipout')
+            div.innerText = '下载表单'
+            div.onclick = function() {
+                chrome.runtime.sendMessage({
+                    message: 'download_shipout_warehhouse',
+                    data: {
+                        param: localStorage.getItem('shipout_params'),
+                        token: localStorage.getItem('accessToken'),
+                        cookie: document.cookie
+                    }
+                })
+            }
+            document.body.appendChild(div)  
+        }
+    }, 1500);
     // 插入一个按钮用来进行监听用
     function addNetworkBtn() {
         let btn = document.createElement('div')
@@ -410,10 +433,18 @@ onload = () => {
                         break;
                     case 'down_pic':
                         // 这个地方拿到所有的src
-                        const picDivForScript = document.getElementById('imageBlockVariations_feature_div')
-                        // 拿他的script元素
-                        const picScript = picDivForScript.querySelector('script')
-                        const downloadUrl = Array.from(picScript.innerText.match(/"hiRes":"(.*?)\.jpg"/g))
+                        let picDivForScript = document.getElementById('imageBlockVariations_feature_div')
+                        let picScript = picDivForScript.querySelector('script')
+                        let downloadUrl = picScript.innerText.match(/"hiRes":"(.*?)\.jpg"/g)
+                        if (downloadUrl) {
+                            //  downloadUrl = Array.from(picScript.innerText.match(/"hiRes":"(.*?)\.jpg"/g))
+                        } else {
+                            picDivForScript = document.getElementById('imageBlock_feature_div')
+                            picScript = picDivForScript.querySelector('#imageBlock')
+                            //  下个元素
+                            let nextsiblingEl = picScript.nextElementSibling
+                            downloadUrl = Array.from(nextsiblingEl.innerText.match(/"hiRes":"(.*?)\.jpg"/g))
+                        }                        
                         // 给background修改
                         chrome.runtime.sendMessage({
                             message: 'downloadAmazonPic',
@@ -980,7 +1011,7 @@ onload = () => {
         const node = document.createElement('div')
         node.classList.add('my_rate')
         node.style.position = "fixed"
-        node.style.top = "70px"
+        node.style.top = "180px"
         node.style.right = "30px"
         node.style.padding = "10px"
         node.style.zIndex = "9999"

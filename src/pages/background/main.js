@@ -885,7 +885,6 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             findSuccessItem = backList.find(item => {
                                 let findItem = successItem.orderList.find(order => order.parentOrderSn === item.parentOrderSn)
                                 if (findItem) {
-                                    debugger;
                                     sku = findItem.extCodeList[0]
                                     runInfo = findItem.orderPackageInfoList[0]
                                     goodInfo = findItem.productInfoList[0]
@@ -1165,34 +1164,34 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             // 上一次更新的商品数据
             let previousData = JSON.parse(localStorage.getItem( currentMallId + 'currentArgCount'))
             //  循环去拿
-            previousData.forEach(data => {
-                // 今天产品的数据
-                let link = format_result.find(item => item.linkSkc === data.linkSkc)
-                data.linkSku.forEach(sku => {
-                    // item拿到的是对应的sku, 然后对比sku的库存变动
-                    let item = link.linkSku.find(ls => ls.itemSku === sku.itemSku)
-                    if (item.itemStock < sku.itemStock) {
-                        // 有变化,收起来
-                        if (updateData[data.linkSkc]) {
-                            updateData[data.linkSkc].push({
-                                itemName: item.itemName,
-                                itemdailyPrice: item.itemPrice,
-                                itemCostNum: sku.itemStock - item.itemStock
-                            })
-                        } else {
-                            updateData[data.linkSkc] = [{
-                                itemName: item.itemName,
-                                itemdailyPrice: item.itemPrice,
-                                itemCostNum: sku.itemStock - item.itemStock
-                            }]
+            if(previousData !== null) {
+                previousData.forEach(data => {
+                    // 今天产品的数据
+                    let link = format_result.find(item => item.linkSkc === data.linkSkc)
+                    data.linkSku.forEach(sku => {
+                        // item拿到的是对应的sku, 然后对比sku的库存变动
+                        let item = link.linkSku.find(ls => ls.itemSku === sku.itemSku)
+                        if (item.itemStock < sku.itemStock) {
+                            // 有变化,收起来
+                            if (updateData[data.linkSkc]) {
+                                updateData[data.linkSkc].push({
+                                    itemName: item.itemName,
+                                    itemdailyPrice: item.itemPrice,
+                                    itemCostNum: sku.itemStock - item.itemStock
+                                })
+                            } else {
+                                updateData[data.linkSkc] = [{
+                                    itemName: item.itemName,
+                                    itemdailyPrice: item.itemPrice,
+                                    itemCostNum: sku.itemStock - item.itemStock
+                                }]
+                            }
+                            allOrderNum += sku.itemStock - item.itemStock
                         }
-                        allOrderNum += sku.itemStock - item.itemStock
-                    }
+                    })
                 })
-            })
+            }
             // 看看有没有变化
-            console.log(updateData)
-            if (Object.keys(updateData).length) {
                 // 证明出单了, 去看我的活动上次的, 这个地方要存储报名的活动时间
                 let prevactivityList = JSON.parse(localStorage.getItem(currentMallId + 'canUseActivity'))
                 // 这次的活动
@@ -1213,20 +1212,57 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         return num < 10 ? '0' + num : num
                     }
                     // 拿到这个月一号
-                    let Times = new Date()
-                    let filterTime = new Date(`${Times.getFullYear()}-${Times.getMonth() + 1}-1 00:00:00`)
+                    let Times = new Date('2024-12-1')
+                    let filterTime = new Date(`${Times.getFullYear()}-${Times.getMonth() + 1}-1 00:00:00`).getTime()
                     console.log(activityList)
-                    let canUseActivity = activityList.data.filter(activity => activity.assignSessionList[0]?.endTime >= filterTime).map(item => ({
-                        activityName: (item.activityThematicName ? item.activityThematicName + '-' : '') + item.activityTypeName,
-                        activitydstartTime: item.assignSessionList[0].startDateStr,
-                        activitydendTime: item.assignSessionList[0].endDateStr,
-                        activityStock: item.activityStock,
-                        activitySkc: item.skcList[0].skcId,
-                        activityGetTime: new Date(item.enrollTime).getFullYear() + '-' + (new Date(item.enrollTime).getMonth() + 1) + '-' + new Date(item.enrollTime).getDate() + ' ' + `${startZero(new Date(item.enrollTime).getHours())}:${startZero(new Date(item.enrollTime).getMinutes())}:${startZero(new Date(item.enrollTime).getSeconds())}`,
-                        activityArgStock: item.remainingActivityStock,
-                        activitySaleStock: item.activityStock - item.remainingActivityStock,
-                        activityList: item.skcList.map(order => ({ itemSkc: order.skcId, child: order.skuList.map(child => ({ itemHuoHao: child.extCode, itemDelayPrice: child.sitePriceList[0].dailyPrice, itemActivePrice: child.sitePriceList[0].activityPrice, itemSku: child.skuId })) }))
-                    }))
+                    let canUseActivity = activityList.data.filter(acticity => {
+                        let list = acticity.assignSessionList
+                        // 如果list存在并且长度不为0
+                        if (list && list.length != 0) {
+                            // 如果长度是1
+                            if (list.length === 1) {
+                                return list[0].endTime >= filterTime
+                            } else {
+                                let li = list.find(li => li.endTime >= filterTime)     
+                                if (li) {
+                                    return true
+                                } else {
+                                    return false
+                                }
+                            }
+                        } else {
+                            // 这个就是空的
+                            return acticity.sessionEndTime >= filterTime
+                        }
+                    }).map(item => {
+                        if (item.assignSessionList && item.assignSessionList.length) {
+                            return {
+                                activityName: (item.activityThematicName ? item.activityThematicName + '-' : '') + item.activityTypeName,
+                                activitydstartTime: item.assignSessionList[0].startDateStr,
+                                activitydendTime: item.assignSessionList[0].endDateStr,
+                                activityStock: item.activityStock,
+                                activitySkc: item.skcList[0].skcId,
+                                activityGetTime: new Date(item.enrollTime).getFullYear() + '-' + (new Date(item.enrollTime).getMonth() + 1) + '-' + new Date(item.enrollTime).getDate() + ' ' + `${startZero(new Date(item.enrollTime).getHours())}:${startZero(new Date(item.enrollTime).getMinutes())}:${startZero(new Date(item.enrollTime).getSeconds())}`,
+                                activityArgStock: item.remainingActivityStock,
+                                activitySaleStock: item.activityStock - item.remainingActivityStock,
+                                activityList: item.skcList.map(order => ({ itemSkc: order.skcId, child: order.skuList.map(child => ({ itemHuoHao: child.extCode, itemDelayPrice: child.sitePriceList[0].dailyPrice, itemActivePrice: child.sitePriceList[0].activityPrice, itemSku: child.skuId })) }))
+                            }
+                        } else {
+                            let startTime = new Date(item.sessionStartTime)
+                            let endTime = new Date(item.sessionEndTime)
+                            return {
+                                activityName: (item.activityThematicName ? item.activityThematicName + '-' : '') + item.activityTypeName,
+                                activitydstartTime: `${startTime.getFullYear()}-${startTime.getMonth() + 1}-${startTime.getDate()}`,
+                                activitydendTime: `${endTime.getFullYear()}-${endTime.getMonth() + 1}-${endTime.getDate()}`,
+                                activityStock: item.activityStock,
+                                activitySkc: item.skcList[0].skcId,
+                                activityGetTime: new Date(item.enrollTime).getFullYear() + '-' + (new Date(item.enrollTime).getMonth() + 1) + '-' + new Date(item.enrollTime).getDate() + ' ' + `${startZero(new Date(item.enrollTime).getHours())}:${startZero(new Date(item.enrollTime).getMinutes())}:${startZero(new Date(item.enrollTime).getSeconds())}`,
+                                activityArgStock: item.remainingActivityStock,
+                                activitySaleStock: item.activityStock - item.remainingActivityStock,
+                                activityList: item.skcList.map(order => ({ itemSkc: order.skcId, child: order.skuList.map(child => ({ itemHuoHao: child.extCode, itemDelayPrice: child.sitePriceList[0].dailyPrice, itemActivePrice: child.sitePriceList[0].activityPrice, itemSku: child.skuId })) }))
+                            }
+                        }
+                    })
                     console.log(canUseActivity, prevactivityList)
                     let currentT = new Date().getTime()
                     canUseActivity = canUseActivity.filter(item => new Date(item.activitydstartTime).getTime() <= currentT)
@@ -1240,7 +1276,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     // 拿到所有已签收
                     let allFinialList = []
                     let currentPage = 1
-                    let currentTime = new Date()
+                    let currentTime = new Date('2024-12-31')
                     let myHeader = new Headers()
                     myHeader.append('cookie', currentCookie)
                     myHeader.append('Mallid', currentMallId)
@@ -1265,6 +1301,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             }
                         }
                     }
+                    // 已发货
                     await getData(order_url, 1, globalOrderList,{
                         "fulfillmentMode": 0,
                         "pageNumber": 1,
@@ -1277,6 +1314,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         'parentOrderTimeEnd': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()} 23:59:59`).getTime() / 1000,
                         'parentOrderTimeStart': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-01 00:00:00`).getTime() / 1000
                     })
+                    // 未发货
                     await getData(order_url, 1, globalErrorList, {
                         "fulfillmentMode": 0,
                         "pageNumber": 1,
@@ -1289,27 +1327,27 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         'parentOrderTimeEnd': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()} 23:59:59`).getTime() / 1000,
                         'parentOrderTimeStart': new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-01 00:00:00`).getTime() / 1000
                     })
+                    // 已签收
                     await getData(order_url, 1, allFinialList, {
                         "fulfillmentMode": 0,
                         "pageNumber": 1,
                         "pageSize": 100,
                         "queryType": 5,
-                        "sortType": 3,
+                        "sortType": 1,
                         "parentOrderTimeStart": new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-01 00:00:00`).getTime() / 1000,
                         "parentOrderTimeEnd": new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()} 23:59:59`).getTime() / 1000,
                         "timeZone": "UTC+8",
                         "parentAfterSalesTag": 0,
                         "sellerNoteLabelList": []
                       })
-                    let alreadySendNum = allOrderNum - globalErrorList.length
-                    let orderList = globalOrderList.slice(0, alreadySendNum)
+                    let orderList = globalOrderList
                     // 这个拿到orderList就是我已发货里面的数据
-                    console.log('3月1号到今天的所有订单', orderList, globalErrorList, allFinialList)
+                    console.log('1月1号所有订单', orderList, globalErrorList, allFinialList)
                     let activitySaleList = {}
                     // 这个地方去对比哪些活动出单了的
                     canUseActivity.forEach(item => {
                         // 这个地方要对比 就是我要先根据SKC拿 然后去判断时间和名字是不是一样
-                        let sameActivity = prevactivityList.find(prev => prev.activitySkc === item.activitySkc && prev.activityName === item.activityName && prev.activityGetTime === item.activityGetTime)
+                        let sameActivity = prevactivityList?.find(prev => prev.activitySkc === item.activitySkc && prev.activityName === item.activityName && prev.activityGetTime === item.activityGetTime)
                         // 如果拿到了,就比对数据是不是有变化
                         if (sameActivity) {
                             let num = item.activitySaleStock - sameActivity.activitySaleStock 
@@ -1373,7 +1411,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             // 活动报名时间
                             let activity_active = null
                             let current_order_sku = null
-                            activity_list.forEach(active_item => {
+                            activity_list?.forEach(active_item => {
                                 let start_time = new Date(active_item.activitydstartTime).getTime()
                                 let end_time = new Date(active_item.activitydendTime).getTime()
                                 let create_time = new Date(active_item.activityGetTime).getTime()
@@ -1490,7 +1528,6 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                 // 拿日常价格
                                 let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
                                 if (!order_skc) {
-                                    debugger;   
                                 }
                                 sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
                             }
@@ -1565,7 +1602,6 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                 // 拿日常价格
                                 let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
                                 if (!order_skc) {
-                                    debugger;   
                                 }
                                 sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
                             }
@@ -1585,7 +1621,6 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         XLSX.writeFile(wb, `demo/半托订单信息表.xlsx`)
                     }
                 }
-            }
         }
     } else if (params.message == 'getSendOrderData') {
         // 这个地方我们重新发一次请求,拿到数据
@@ -1643,8 +1678,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 "page_number": 1,
                 "page_size": 200,
                 "sort_type": 1,
-                "call_begin_time": 1735660800,
-                "call_end_time": 1738339199
+                "call_begin_time": new Date('2025-2-1').getTime() / 1000,
+                "call_end_time": new Date('2025-2-28').getTime() / 1000
             })
         }).then(res => res.json())
         // 拿下产品信息
@@ -1773,6 +1808,22 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         XLSX.utils.book_append_sheet(wb, ws, '回款数据表')
         // 导出
         XLSX.writeFile(wb, '回款数据对照表/data_diff_sheet.xlsx')
+    } else if (params.message == 'download_shipout_warehhouse') {
+        // 发请求
+        let url = baseURL + '/getWarehouseList'
+        const result = await fetch(url, {
+            method: 'post',
+            body: JSON.stringify({
+                param: params.data.param,
+                token: `Bearer ${JSON.parse(params.data.token)}`,
+                cookie: params.data.cookie
+            }),
+            headers: {
+                'content-type': 'application/json'
+            }
+        }).then(res => res.json())
+        console.log(result)
+        return
     }
 })
 

@@ -16,6 +16,8 @@ let currentCode = ''
 let goodListCookie = ''
 // 发货时的产品的尺寸数据
 let sendOrderData = null
+// 11.5一公斤 1000g
+let weight_price = 11.5
 // 这个是导出订单的数组
 let sendXLSXData = [['订单日期', 'SKU号', 'SKC号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
 let PaiPaiWrehouseId = [
@@ -1140,11 +1142,13 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             }),
             headers: myHeader
         }).then(res => res.json())
+        let localGoogData
         if (result.statu === 200) {
+            localGoogData = result.data
             // 先进行格式化
             if (params.type === 'download') {
                 // 要导出, 就要重置下XLSXdata
-                sendXLSXData = [['订单日期', 'SKU号', 'SKC号', '订单号', '日常价格', '活动价格', '活动名称', '数量']]
+                sendXLSXData = [['订单日期', 'SKU号', 'SKC号', '订单号', '日常价格', '活动价格', '活动名称', '数量', '尾程运费', '产品重量', '头程运费']]
             }
             let format_result = result.data.map(item => ({
                     linkSkc: item.productSkcId,
@@ -1212,7 +1216,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         return num < 10 ? '0' + num : num
                     }
                     // 拿到这个月一号
-                    let Times = new Date('2024-12-1')
+                    let Times = new Date('2025-02-01')
                     let filterTime = new Date(`${Times.getFullYear()}-${Times.getMonth() + 1}-1 00:00:00`).getTime()
                     console.log(activityList)
                     let canUseActivity = activityList.data.filter(acticity => {
@@ -1276,7 +1280,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     // 拿到所有已签收
                     let allFinialList = []
                     let currentPage = 1
-                    let currentTime = new Date('2024-12-31')
+                    let currentTime = new Date('2025-02-28')
                     let myHeader = new Headers()
                     myHeader.append('cookie', currentCookie)
                     myHeader.append('Mallid', currentMallId)
@@ -1392,6 +1396,37 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         }
                     })
                     console.log('格式化之后的所有活动出单都在这里', activitySaleList)
+                    // 这个地方要拿面单
+                    const url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+                    async function getMianDanData(order_url, data, query) {
+                        const order_response = await fetch(order_url, {
+                            method: 'POST',
+                            headers: myHeader,
+                            body: JSON.stringify(query)
+                        }).then(res => res.json())
+                        if (order_response.success) {
+                            const { package_info_result_list  } = order_response.result
+                            data.push(...package_info_result_list)
+                            // 判断,如果是就继续请求
+                            let currentPageSize = query.page_number * query.page_size
+                            if (order_response.result.total_count > currentPageSize) {
+                                await delayFn()
+                                // 继续请求
+                                query.page_number += 1
+                                await delayFn()
+                                await getMianDanData(order_url, data, query)
+                            }
+                        }
+                    }
+                    let miandan_order = []
+                    await getMianDanData(url, miandan_order, {
+                        "page_number": 1,
+                        "page_size": 200,
+                        "sort_type": 1,
+                        "call_begin_time": new Date('2025-02-01 00:00:00').getTime() / 1000,
+                        "call_end_time": new Date('2025-03-18 23:59:59').getTime() / 1000
+                    })
+                    console.log(miandan_order)                   
                     // 这个就是已经发走的
                     if (orderList.length) {
                         orderList.forEach(item => {
@@ -1407,10 +1442,14 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             let order_num = item.orderList[0].quantity
                             // 拿到这个Skc报名的活动
                             let activity_list = activitySaleList[order_skc]
+                            // 拿到产品真正的sku
+                            let good_sku = item.orderList[0].productInfoList[0].productSkuId
                             // 拿到那个GetTime最早的,肯定是出的他的单
                             // 活动报名时间
                             let activity_active = null
                             let current_order_sku = null
+                            // 拿到运费
+                            let yunPrice = miandan_order.find(items => items.order_send_info_list[0].parent_order_sn === item.parentOrderMap.parentOrderSn)
                             activity_list?.forEach(active_item => {
                                 let start_time = new Date(active_item.activitydstartTime).getTime()
                                 let end_time = new Date(active_item.activitydendTime).getTime()
@@ -1444,18 +1483,26 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     }
                                 }
                             })
+                            // 拿到产品
+                            let item_good = localGoogData.find(good => good.productSkcId == order_skc)
+                            // 再拿sku
+                            let goodItem = item_good.productSkuSummaries.find(g => g.extCode == order_sku)
+                            // 拿到重量
+                            let item_weight = goodItem.productSkuWhExtAttr.productSkuWeight.value / 1000
+                            // 换算价格
+                            let weight_price = item_weight / 1000 * 11.5
                             // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
                             // 判断下是不是有活动, 也有的单不是活动来的
                             if (activity_active) {
                                 // 有活动才走这个
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num, yunPrice?.online_estimated_vo?.estimated_amount, item_weight, weight_price])
                                 activity_active.saleNum -= order_num
                             } else {
                                 // 没有活动的, 就直接录入平时的价格
                                 let goodItem = format_result.find(resp => resp.linkSkc == order_skc)
                                 // 拿日常价格
                                 let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num, yunPrice?.online_estimated_vo?.estimated_amount, item_weight, weight_price])
                             }
                             // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
                         })
@@ -1475,6 +1522,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             let order_num = item.orderList[0].quantity
                             // 拿到这个Skc报名的活动
                             let activity_list = activitySaleList[order_skc]
+                            // 拿到产品真正的sku
+                            let good_sku = item.orderList[0].productInfoList[0].productSkuId
                             console.log(activity_list, activitySaleList, order_skc)
                             // 拿到那个GetTime最早的,肯定是出的他的单
                             // 活动报名时间
@@ -1516,11 +1565,19 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     }
                                 })
                             }
+                            // 拿到产品
+                            let item_good = localGoogData.find(good => good.productSkcId == order_skc)
+                            // 再拿sku
+                            let goodItem = item_good.productSkuSummaries.find(g => g.extCode == order_sku)
+                            // 拿到重量
+                            let item_weight = goodItem.productSkuWhExtAttr.productSkuWeight.value / 1000
+                            // 换算价格
+                            let weight_price = item_weight / 1000 * 11.5
                             // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
                             // 判断下是不是有活动, 也有的单不是活动来的
                             if (activity_active) {
                                 // 有活动才走这个
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num, item_weight, weight_price])
                                 activity_active.saleNum -= order_num
                             } else {
                                 // 没有活动的, 就直接录入平时的价格
@@ -1529,7 +1586,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                 let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
                                 if (!order_skc) {
                                 }
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num, item_weight, weight_price])
                             }
                             // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
                         })
@@ -1549,11 +1606,15 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             let order_num = item.orderList[0].quantity
                             // 拿到这个Skc报名的活动
                             let activity_list = activitySaleList[order_skc]
+                            // 拿到产品真正的sku
+                            let good_sku = item.orderList[0].productInfoList[0].productSkuId
                             console.log(activity_list, activitySaleList, order_skc)
                             // 拿到那个GetTime最早的,肯定是出的他的单
                             // 活动报名时间
                             let activity_active = null
                             let current_order_sku = null
+                            // 拿到运费
+                            let yunPrice = miandan_order.find(items => items.order_send_info_list[0].parent_order_sn === item.parentOrderMap.parentOrderSn)
                             // 也有没报活动的
                             if (activity_list){
                                 activity_list.forEach(active_item => {
@@ -1590,11 +1651,19 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     }
                                 })
                             }
+                            // 拿到产品
+                            let item_good = localGoogData.find(good => good.productSkcId == order_skc)
+                            // 再拿sku
+                            let goodItem = item_good.productSkuSummaries.find(g => g.extCode == order_sku)
+                            // 拿到重量
+                            let item_weight = goodItem.productSkuWhExtAttr.productSkuWeight.value / 1000
+                            // 换算价格
+                            let weight_price = item_weight / 1000 * 11.5
                             // 到这个地方肯定会筛选出我这一单,到底是哪个活动出单,然后就记录
                             // 判断下是不是有活动, 也有的单不是活动来的
                             if (activity_active) {
                                 // 有活动才走这个
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, current_order_sku.itemDelayPrice / 100, current_order_sku.itemActivePrice / 100, activity_active.activityName,order_num, yunPrice?.online_estimated_vo?.estimated_amount, item_weight, weight_price])
                                 activity_active.saleNum -= order_num
                             } else {
                                 // 没有活动的, 就直接录入平时的价格
@@ -1603,7 +1672,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                 let delay_price = goodItem.linkSku.find(item => item.itemName == order_sku)
                                 if (!order_skc) {
                                 }
-                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num])
+                                sendXLSXData.push([order_time, order_sku, order_skc, item.parentOrderMap.parentOrderSn, delay_price.itemPrice, null, null, order_num, yunPrice?.online_estimated_vo?.estimated_amount, item_weight, weight_price])
                             }
                             // 这个地方要把活动的数量减1, 下次比较的时候如果是空的,就不更换了哦
                         })

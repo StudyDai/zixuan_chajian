@@ -24,10 +24,11 @@ window.XMLHttpRequest = function () {
         }
         xhr.send = function (data) {
             requestBody = data;
-            if (haveSave && isCollect) {
+            if (haveSave) {
                 haveSave = false
                 localStorage.setItem('shipout_params', requestBody)
                 console.log('Request Body:', requestBody);
+            } else if (haveSave) {
             }
             originalSend.call(this, data);
         };

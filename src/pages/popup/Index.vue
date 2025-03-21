@@ -17,10 +17,11 @@
     <div v-if="hasPermission">
       <div class="getMoney">
         <button @click="getAllGoodAndActivity" :disabled="CanClick">开启记录</button>
-        <button @click="getCurrentActivity">更新记录</button>
         <button @click="getCurrentActivity('download')">导出记录</button>
         <button @click="getCurrentOrder">获取当月面单</button>
         <button @click="getOrderByAccount">根据回款匹配订单</button>
+        <button @click="startNetWorkLook">开启网络监听</button>
+        <button @click="endNetWorkLook">关闭网络监听</button>
         <input type="file" style="visibility: hidden;" ref="fileIpt"  />
       </div>
       <div class="get_good_excel">
@@ -167,6 +168,18 @@ export default {
     }
   },
   methods: {
+    startNetWorkLook() {
+      // 不监听
+      chrome.runtime.sendMessage({
+        message: 'startNetWorkLook'
+      })
+    },
+    endNetWorkLook() {
+      // 监听
+      chrome.runtime.sendMessage({
+        message: 'endNetWorkLook'
+      })
+    },
     getCurrentOrder() {
       chrome.runtime.sendMessage({
         message: 'getWarehouseOder'

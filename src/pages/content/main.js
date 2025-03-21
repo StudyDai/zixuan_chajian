@@ -299,6 +299,76 @@ onload = () => {
                 '800': href.replace(/w\/180/, 'w/800')
             }
         }
+        const get_btn = document.createElement('div')
+        get_btn.classList.add('get_add')
+        get_btn.innerText = '监'
+        get_btn.onclick = function() {
+            // 判断是否已经保存过一次了
+            let listener = localStorage.getItem('monitor') 
+            let item = null
+            // 直接拿.html
+            console.log(location.href)
+            let reg = /-g-(.*).html/
+            let order_id = location.href.match(reg)
+            if (order_id) {
+                console.log(order_id[1],'拿到了')
+                let current_id = order_id[1]
+                if (!listener) {
+                    listener = []
+                } else {
+                    listener = JSON.parse(listener)
+                }
+                // 再判
+                for (let index = 0; index < listener.length; index++) {
+                    const element = listener[index];
+                    if (element.order_id === current_id) {
+                        item = element
+                        break
+                    }
+                }
+                // 判断是不是存在,存在就提示
+                if (item) {
+                    alert('已经加入监听队列')
+                    return
+                } else {
+                    let saleData = document.querySelector('._3MX1FGET')
+                    let priceReg = /已售 (.*)件/
+                    // 要拿一张图片的地址
+                    let imgContainer = document.querySelector('._2AOclWz7')
+                    // 拿到所有图片里面的一张
+                    let imgList = imgContainer.querySelectorAll('img')
+                    // 拿商家店名
+                    let goodName = document.querySelector('._3A4F96VH')
+                    // 添加进去
+                    const currentTime = new Date()
+                    const timestramp = new Date(`${currentTime.getFullYear()}-${currentTime.getMonth() + 1}-${currentTime.getDate()}`).getTime() 
+                    listener = listener.concat({
+                        order_id: order_id[1],
+                        listPicUrl: imgList[0].src,
+                        itemName: goodName.innerText,
+                        order_num: [{
+                            listDate: timestramp,
+                            saleNum: saleData.innerText.match(priceReg)[1].replace(',', '') * 1
+                        }]
+                    })
+                }
+            }
+            // 保存到本地
+            localStorage.setItem('monitor', JSON.stringify(listener))
+            // 并且传递给background
+            chrome.runtime.sendMessage({
+                message: 'monitorLink',
+                data: listener
+            })
+        }
+        const del_btn = document.createElement('div')
+        del_btn.classList.add('del_add')
+        del_btn.innerText = '看'
+        del_btn.onclick = function() {
+            window.open(chrome.runtime.getURL('/options.html'))
+        }
+        document.body.appendChild(get_btn)
+        document.body.appendChild(del_btn)
         console.log(downloadList)
     } else if (/amazon\.com/.test(location.href)) {
         let amazonDownloadBtn = false
@@ -528,6 +598,7 @@ onload = () => {
             }   
         });
     }
+
     // 将默认的鼠标移除掉
     // document.documentElement.style.cursor = "none"
     document.documentElement.style.pointEvent = "none"
@@ -927,6 +998,13 @@ onload = () => {
             }
         }
 
+        else if (res.type === 'startlook') {
+            localStorage.setItem('start_look', true)
+        }
+
+        else if (res.type === 'endlook') {
+            localStorage.setItem('start_look', false)
+        }
         // 下载面单,这个方式下载面单是通过插入a的方式,而不是通过调用downloads的谷歌api进行下载
         // 
         //     <!-- 第二行 -->

@@ -1236,29 +1236,30 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         return num < 10 ? '0' + num : num
                     }
                     // 拿到这个月一号
-                    let Times = new Date('2025-01-01 00:00:00')
+                    let Times = new Date('2024-12-1 00:00:00')
                     let currentYear = Times.getFullYear()
                     let currentMonth = Times.getMonth() + 1
                     let currentTime, prevTime;
                     if (currentMonth - 1 === 0) {
                         // 证明要拿到去年的数据
                         let prevYear = currentYear - 1
-                        prevTime = new Date(`${prevYear}-12-1 00:00:00}`)
+                        prevTime = new Date(`${prevYear}-12-1 00:00:00`)
                     } else {
                         // 如果不是去年,那么就是年份不变,月份减一
-                        prevTime = new Date(`${currentYear}-${currentMonth - 1}-1 00:00:00}`)
+                        prevTime = new Date(`${currentYear}-${currentMonth - 1}-1 00:00:00`)
                     }
                     currentTime = new Date(`${currentYear}-${currentMonth}-${getLastDayOfMonth(currentYear, currentMonth)}`)
-                    console.log(activityList)
                     let canUseActivity = activityList.data.filter(acticity => {
                         let list = acticity.assignSessionList
                         // 如果list存在并且长度不为0
                         if (list && list.length != 0) {
                             // 如果长度是1
                             if (list.length === 1) {
+                                console.log('这个是有1数据的', prevTime.getTime(), list)
                                 return CompareNum(list[0].endTime, prevTime.getTime()) 
                             } else {
-                                let li = list.find(li => CompareNum(li.endTime, prevTime.getTime()))     
+                                let li = list.find(li => CompareNum(li.endTime, prevTime.getTime()))
+                                console.log('这个是有2数据的', prevTime, li)
                                 if (li) {
                                     return true
                                 } else {
@@ -1266,6 +1267,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                 }
                             }
                         } else {
+                            console.log('这个是么有数据的', prevTime, acticity.sessionEndTime)
                             // 这个就是空的
                             return CompareNum(acticity.sessionEndTime, prevTime.getTime()) 
                         }
@@ -1841,7 +1843,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                             let start_time = new Date(active_item.activitydstartTime).getTime()
                                             let end_time = new Date(active_item.activitydendTime).getTime()
                                             let create_time = new Date(active_item.activityGetTime).getTime()
-                                            console.log(end_time, order_timestramp)
+                                            console.log(end_time, order_timestramp, order_skc)
                                             // 如果可售的数量不够当前的订单,直接下一个
                                             if (active_item.saleNum < order_num) {
                                                 // 这个活动肯定不可能出这单了
@@ -1864,13 +1866,14 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                                 let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
                                                 // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
                                                 if(!current_item) {
-                                                    debugger
                                                 }
-                                                if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                                // 上一次活动的价格比我现在低,那么就不动才对吧.. 这个要改大于
+                                                if (prev_item.itemActivePrice > current_item.itemActivePrice) {
                                                     // 替换掉
                                                     activity_active = active_item
                                                     current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
                                                 }
+                                            } else {
                                             }
                                         })
                                     }
@@ -1948,14 +1951,17 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                              // 拿到上一个活动的价格
                                              let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
                                              // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
-                                             if(!current_item) {
-                                                console.log(child_list)
-                                                debugger
+                                             if(!current_item || !current_item.activityPrice) {
+                                                return
                                             }
-                                             if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                             if (prev_item.itemActivePrice > current_item.itemActivePrice) {
                                                  // 替换掉
-                                                 activity_active = active_item
-                                                 current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                                 let current = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                                 if (current) {
+                                                    current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
+                                                    activity_active = active_item
+                                                 }
+                                                 
                                              }
                                          }
                                      })
@@ -2043,7 +2049,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                             // 拿到上一个活动的价格
                                             let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
                                             // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
-                                            if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                            if (prev_item.itemActivePrice > current_item.itemActivePrice) {
                                                 // 替换掉
                                                 activity_active = active_item
                                                 current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)
@@ -2121,7 +2127,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                         // 拿到上一个活动的价格
                                         let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
                                         // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
-                                        if (prev_item.itemActivePrice < current_item.itemActivePrice) {
+                                        if (prev_item.itemActivePrice > current_item.itemActivePrice) {
                                             // 替换掉
                                             activity_active = active_item
                                             current_order_sku = active_item.childList[0].child.find(item => item.itemHuoHao === order_sku)

@@ -1948,7 +1948,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                              let current_item = child_list.find(item => item.itemHuoHao === order_sku)
                                              // 拿到上一次保存的活动价
                                              let prev_list = activity_active.childList[0].child
-                                             // 拿到上一个活动的价格
+                                             // 拿到上一个活动的价格哈
                                              let prev_item = prev_list.find(item => item.itemHuoHao === order_sku)
                                              // 对比我现在的活动是不是价格比他的低,是的话就替换,不是的话就不换
                                              if(!current_item || !current_item.activityPrice) {

@@ -189,19 +189,33 @@ onload = () => {
         btn.innerText = '监听网络'
         let btn2 = document.createElement('div')
         btn2.classList.add('downloadWork')
-        btn2.innerText = '下载监听到的数据'
+        btn2.innerText = '下载监听到的数据(维赢)'
         let btn3 = document.createElement('div')
         btn3.classList.add('downloadAliexpress')
-        btn3.innerText = '导出为Excel表格'
+        btn3.innerText = '导出为Excel表格(维赢)'
+        let btn4 = document.createElement('div')
+        btn4.classList.add('downloadWorkByOms')
+        btn4.innerText = '下载监听到的数据(派派)'
+        let btn5 = document.createElement('div')
+        btn5.classList.add('downloadAliexpressByOms')
+        btn5.innerText = '导出为Excel表格(派派)'
         btn3.onclick = function() {
             chrome.runtime.sendMessage({
                 message: 'download_aliexpress_order',
                 data: localStorage.getItem('cacheAliexpress')
             })
         }
+        btn5.onclick = function() {
+            chrome.runtime.sendMessage({
+                message: 'download_aliexpress_order_byoms',
+                data: localStorage.getItem('cacheAliexpressByOms')
+            })
+        }
         document.body.appendChild(btn)
         document.body.appendChild(btn2)
         document.body.appendChild(btn3)
+        document.body.appendChild(btn4)
+        document.body.appendChild(btn5)
     }
     const re = /https:\/\/csp\.aliexpress\.com\/m_apps\/logistics/
     if (re.test(location.href)) {

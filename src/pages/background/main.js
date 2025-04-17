@@ -14,6 +14,30 @@ let PaiPaiWareHouse = []
 let haveTime = ''
 let currentCode = ''
 let goodListCookie = ''
+const PRODUCTCODE_TO_INFOMAP = {
+    'USA-100': {
+        'weight': 1.8,
+        'length': 6,
+        'width': 5,
+        'height': 3,
+        'goodname': '钉子',
+        'omsname': 'USA-111'
+    },
+    'USA-101': {
+        'weight': 3.3,
+        'length': 15.35,
+        'width': 11,
+        'height': 3,
+        'goodname': '钉枪',
+        'omsname': 'USA-110'
+    }
+};
+const STATECODE_TO_WAREHOUSEMAP = {
+    'CA': 'LAX',
+    'FL': 'MIA',
+    'TX': 'DFW',
+    'NY': 'JFK'
+}
 // 发货时的产品的尺寸数据
 let sendOrderData = null
 // 11.5一公斤 1000g
@@ -316,7 +340,9 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         localStorage.setItem('dianxiaomicookie', params.cookie)
     } else if (params.message == 'downloadFile') {
         // 拿到了
-        console.log(params.data, '拿到了')
+        console.log('拿到了')
+        
+        // 下面先不走，我要发个请求
         const myHeader = new Headers()
         myHeader.append('cookie', currentCookie)
         myHeader.append('Mallid', currentMallId)
@@ -531,52 +557,104 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // 去请求pdf地址
         const pdf_url = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
         const downloadList = []
-        function getUrl() {
-            format_Data.forEach(async (value, index) => {
-                const pdf_data = {
-                    "package_sn_list": [
-                        value.package_sn
-                    ],
-                    "download": true,
-                    "merge_files": true,
-                    "batch_event_type": 1
-                }
-                const result = await fetch(pdf_url, {
+        // 这个下载方法仅支持平台允许下载的订单，而第二种方法是直接调用平台在线保存的方式进行保存
+        // function getUrl() {
+        //     format_Data.forEach(async (value, index) => {
+        //         const pdf_data = {
+        //             "package_sn_list": [
+        //                 value.package_sn
+        //             ],
+        //             "download": true,
+        //             "merge_files": true,
+        //             "batch_event_type": 1
+        //         }
+        //         const result = await fetch(pdf_url, {
+        //             method: 'POST',
+        //             body: JSON.stringify(pdf_data),
+        //             headers: myHeader
+        //         }).then(res => res.json())
+        //         console.log(result)
+        //         if (result.success) {
+        //             // 拿到了，那就先拿地址，然后下载
+        //             const url = result.result.merged_shipping_label_url
+        //             downloadList.push({
+        //                 fileName: `${value.order_send_info_list[0].parent_order_sn}.pdf`,
+        //                 url
+        //             })
+        //             console.log(downloadList, result.result)
+        //         }
+        //         await delayFn()
+        //         if (index === format_Data.length - 1) {
+        //             // 这个是告诉contentjs的,但是我们用download的api就不用这个方式了 
+        //             //  MessageToWindow(currentActiveId, 'downloadOrder', {
+        //             //     list: downloadList,
+        //             //     dirName
+        //             //  })
+        //             downloadList.forEach(async item => {
+        //                 console.log(item)
+        //                 chrome.downloads.download({
+        //                     url: item.url,
+        //                     saveAs: false, // true的话会弹出让你确认保存地址的窗,设置false
+        //                     filename: `${dirName}/${item.fileName}`, //这样就可以了,不要出现../ .这些也不要出现/ 直接开头就是本地浏览器保存的文件夹目录下了
+        //                     conflictAction: 'uniquify'
+        //                 })
+        //                 await delayFn()
+        //             })
+        //         }
+        //     })
+        // }
+        // 这个方法就是不管是谁的面单我都可以下载到
+        async function getUrl() {
+            console.log(format_Data)
+            for (let index = 0; index < format_Data.length; index++) {
+                const value = format_Data[index];
+                const header = new Headers()
+                header.append('cookie', currentCookie)
+                header.append('Mallid', currentMallId)
+                header.append('content-type', 'application/json')
+                const url2 = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
+                const response2 = await fetch(url2, {
                     method: 'POST',
-                    body: JSON.stringify(pdf_data),
-                    headers: myHeader
+                    headers: header,
+                    body: JSON.stringify({
+                        "merge_files": true,
+                        "package_sn_list": [value.package_sn]
+                    })
                 }).then(res => res.json())
-                console.log(result)
-                if (result.success) {
-                    // 拿到了，那就先拿地址，然后下载
-                    const url = result.result.merged_shipping_label_url
+                if (response2.success) {
+                    // 证明拿到pdf了
+                    let pdfURL = response2.result.merged_shipping_label_url
+                    // 这个地方再去发请求一次
+                    let pdfResult = await fetch(pdfURL, {
+                        method: 'get',
+                        headers: header
+                    }).then(res => res.arrayBuffer())
+                    // 拿到buffer之后要转化成对象类型的网址
+                    let new_blob = new Blob([pdfResult], { type: 'application/pdf' })
+                    // 转下载网址
+                    let download_url = URL.createObjectURL(new_blob)
                     downloadList.push({
                         fileName: `${value.order_send_info_list[0].parent_order_sn}.pdf`,
-                        url
+                        url: download_url
                     })
-                    console.log(downloadList, result.result)
                 }
                 await delayFn()
-                if (index === format_Data.length - 1) {
-                    // 这个是告诉contentjs的,但是我们用download的api就不用这个方式了 
-                    //  MessageToWindow(currentActiveId, 'downloadOrder', {
-                    //     list: downloadList,
-                    //     dirName
-                    //  })
-                    downloadList.forEach(async item => {
-                        console.log(item)
-                        chrome.downloads.download({
-                            url: item.url,
-                            saveAs: false, // true的话会弹出让你确认保存地址的窗,设置false
-                            filename: `${dirName}/${item.fileName}`, //这样就可以了,不要出现../ .这些也不要出现/ 直接开头就是本地浏览器保存的文件夹目录下了
-                            conflictAction: 'uniquify'
-                        })
-                        await delayFn()
+            }
+            if (downloadList.length) {
+                // 证明有数据了 开始
+                for (let index = 0; index < downloadList.length; index++) {
+                    const item = downloadList[index];
+                    chrome.downloads.download({
+                        url: item.url,
+                        saveAs: false, // true的话会弹出让你确认保存地址的窗,设置false
+                        filename: `${dirName}/${item.fileName}`, //这样就可以了,不要出现../ .这些也不要出现/ 直接开头就是本地浏览器保存的文件夹目录下了
+                        conflictAction: 'uniquify'
                     })
+                    await delayFn()  
                 }
-            })
+            }
         }
-        getUrl()
+        await getUrl()
         // 去前台拿一个id
     } else if (params.message == "getId") {
         console.log(params.data, '我是id')
@@ -2303,7 +2381,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // 添加进去
         XLSX.utils.book_append_sheet(wb, ws, '速卖通批量发货订单')
         // 导出
-        XLSX.writeFile(wb, './发货订单/速卖通发货单.xlsx')
+        XLSX.writeFile(wb, './发货订单/速卖通发货单(维赢).xlsx')
     } else if (params.message == 'getOrderBySn') {
         const allList = params.data
         console.log(allList, allList.length)
@@ -2408,8 +2486,212 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         //     },
         //     body: JSON.stringify()
         // })
+    } else if (params.message == 'getZero') {
+        let time = new Date()
+        console.log(params.data)
+        // 这个地方要格式化 就是把名字一样的订单合并下
+        let warehouseMap, warehouseList, resultData = params.data
+        if (resultData.length) {
+            // 拿到PG海外仓的数据
+            const wareList = await fetch('https://dsp-api.piggyship.com/vendor/vendor/get_vendor_addresses', {
+                method: 'post',
+                headers: {
+                    'authorization': 'kYAzqXvb70KrYHj7HScUZB7IszwdLotmCh2lO8znNntY6Ptiovmk3fgw6eppapYIOkeZhj'
+                },
+                body: {
+                    start: 0,
+                    limit: 10
+                }
+            }).then(res => res.json())
+            if (wareList.success) {
+                warehouseMap = {}
+                warehouseList = wareList.vendor_addresses.map(item => {
+                    let wareIp = item.state
+                    warehouseMap[wareIp] = item
+                    return {
+                        'zipcode': item.zipcode,
+                        'address': item.formatted_address,
+                        'state': item.state
+                    }
+                })
+                // 拿shipout登录信息
+                let  url = 'https://oms.shipout.com/api/auth-server/oauth/token'
+                // 发送的数据是formdata
+                const sendData = new FormData()
+                sendData.append('grant_type', 'password')
+                sendData.append('username', '1184989121@qq.com')
+                sendData.append('password', 'at981223')
+                sendData.append('scope', 'oms')
+                sendData.append('systemType', 'OMS')
+                sendData.append('client_secret', 7700)
+                sendData.append('client_id', "browser-oms")
+                const loginResult = await fetch(url, {
+                    method: 'post',
+                    body: sendData
+                }).then(res => res.json())
+                if (loginResult.fullName.trim()) {
+                    // 先拿仓库的各项信息
+                    url = 'https://oms.shipout.com/api/wms-user/user/queryWarehouse'
+                    const warehouseResult = await fetch(url,{
+                        method: 'get',
+                        headers: {
+                            'Authorization': 'bearer ' + loginResult.access_token
+                        }
+                    }).then(res => res.json())
+                    if (warehouseResult.result === 'OK') {
+                        let warehouseData = warehouseResult.data.map(w => ({
+                            wareId: w.warehouseId,
+                            warename: w.warehouseName,
+                            wareAddr1: w.warehouseAddr1,
+                            wareAddr2: w.warehouseAddr2,
+                            wareStatu: w.wmsClientStatus
+                        }))
+                        // 继续拿东西
+                        // 拿shipout的库存信息
+                        url = 'https://oms.shipout.com/api/shipout-stock2/oms/stock/querySkuStockBySku'
+                        let param = {
+                            "queryType": "OnlyInStock",
+                            "sourceType": "Inbound",
+                            "curPageNo": 1,
+                            "pageSize": 60
+                        }
+                        const shipoutResult = await fetch(url, {
+                            method: 'post',
+                            body: JSON.stringify(param),
+                            headers: {
+                                'Authorization': 'bearer ' + loginResult.access_token,
+                                'Content-Type': 'application/json'
+                            }
+                        }).then(res => res.json())
+                        if (shipoutResult.result === 'OK') {
+                            let goodStock = shipoutResult.data.records.map(item => ({
+                                'shipoutSku': item.sku.omsSku,
+                                'skuname': item.sku.skuNameEN,
+                                'canUseStock': item.totalQty.avaQty,
+                                'roadStock': item.totalQty.inboundingQty,
+                                'warehouseStockList': item.warehouseStockList.map(ware => ({
+                                'canUseStock': ware.avaQty,
+                                'warehouseId': ware.warehouseId,
+                                'warehousename': warehouseData.find(i => (i.wareId === ware.warehouseId) && i.wareStatu)?.warename
+                                }))
+                            }))
+                            // 都拿到了,看看
+                            // 开始循环
+                            // 存每个订单的order数据和对应的仓库库存以及四个区域对应的区
+                            let orderInfo = {}
+                            for (let index = 0; index < resultData.length; index++) {
+                                const u_order = resultData[index];
+                                // 拿到SKU
+                                let sku = u_order['Seller SKU']
+                                // 拿到对应的海外仓代码以及产品数据
+                                let sku_msg = PRODUCTCODE_TO_INFOMAP[sku]
+                                console.log(sku_msg, '信息')
+                                console.log(u_order, '订单')
+                                // 先判断有咩有库存先
+                                console.log(goodStock, sku_msg)
+                                for (let w_in = 0; w_in < warehouseList.length; w_in++) {
+                                    const element = warehouseList[w_in];
+                                    // 查查有没有库存先
+                                    let state = element.state
+                                    // 拿到对应的仓库名称
+                                    let resp = haveStock(sku_msg.omsname, goodStock, state)
+                                    if (!Object.keys(resp).length) {
+                                        // 咩有库存 退出
+                                        continue
+                                    }
+                                    // 调用美国邮编查询下我当前的仓库到用户的那个是多少区
+                                    const url = `https://postcalc.usps.com/DomesticZoneChart/GetZone?origin=${element.zipcode}&destination=${u_order.Zipcode}&shippingDate=${time.getMonth() + 1}/${time.getDate() - 1}/${time.getFullYear()}&_=${time.getTime()}`
+                                    const zeroResult = await fetch(url).then(res => res.json())
+                                    let reg = /\b(\d+)\./
+                                    // // 要判断
+                                    let zero_count = zeroResult.ZoneInformation.match(reg)[1]
+                                    if (zero_count) {
+                                        // 存在 看看是多少
+                                        let keys = Object.keys(orderInfo)
+                                        if (keys.includes(u_order['Order ID'])) {
+                                            // 存在,那么则进行添加
+                                            orderInfo[u_order['Order ID']].wareList.push({
+                                                name: state,
+                                                warename: resp.warehouseName,
+                                                zero: zero_count,
+                                                stock: resp.stock
+                                            })
+                                        } else {
+                                            orderInfo[u_order['Order ID']] = {
+                                                order: u_order,
+                                                wareList: [{
+                                                    name: state,
+                                                    warename: resp.warehouseName,
+                                                    zero: zero_count,
+                                                    stock: resp.stock
+                                                }]
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                            }
+                            // 拿到数据发给后端
+                            const finalResult = await fetch('http://8.138.17.46:8800/sendZero', {
+                                method: 'post',
+                                body: JSON.stringify({
+                                    statu: 200,
+                                    data: orderInfo
+                                }),
+                                headers: {
+                                    'content-type': 'application/json'
+                                }
+                            }).then(res => res.json())
+                            console.log(orderInfo, finalResult)
+                        }
+                    }
+                }
+            } else {
+                console.log("获取PG数据失败")
+                return
+            }
+        }
+        // for (let index = 0; index < 10; index++) {
+        //     const result = await fetch(url).then(res => res.json())
+        //     console.log(result.data)
+        // }
+    } else if (params.message == 'download_aliexpress_order_byoms') {
+        // 这个是打印出来派派的
+        // 要多加一行
+        let xlsxData = JSON.parse(params.data)
+        xlsxData.unshift(["订单号","参考号","平台","发货仓库","面单类型","物流","运单号","商品 SKU","商品单价","数量","订单金额","币种","收件人","手机号","邮箱","邮政编码","国家","省 / 州","市 / 府","区 / 县","详细地址","详细地址 2"])
+        const wb = XLSX.utils.book_new()
+        // 生成excel对应的数据
+        const ws = XLSX.utils.aoa_to_sheet(xlsxData)
+        // 添加进去
+        XLSX.utils.book_append_sheet(wb, ws, '速卖通批量发货订单')
+        // 导出
+        XLSX.writeFile(wb, './发货订单/速卖通发货单(派派).xlsx')
     }
 })
+
+// 判断有没有库存
+function haveStock(sku, stockList, area) {
+    let skuStock = stockList.find(s => s.shipoutSku === sku)
+    // 找到了就开始循环
+    if (skuStock && skuStock.warehouseStockList?.length) {
+        // 有东西,看看
+        // 找到对应的仓库代码 通过CA 去找 LAX
+        let WarehouseId = STATECODE_TO_WAREHOUSEMAP[area]
+        // 找仓库的数据
+        let wareItem = skuStock.warehouseStockList.find(li => li.warehousename === WarehouseId)
+        if (wareItem.canUseStock) {
+            console.log(wareItem.canUseStock)
+            // 证明是要用PG发的
+            return {
+                warehouseName: wareItem.warehousename,
+                stock: wareItem.canUseStock
+            }
+        } else {
+            return false
+        }
+    }
+}
 
 // 下载亚马逊视频的函数
 async function downloadAmazonVideo(list) {

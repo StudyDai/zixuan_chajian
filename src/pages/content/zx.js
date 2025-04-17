@@ -53,7 +53,10 @@ if (flag) {
     if (reg.test(location.href)) {
         // 进来就直接给按钮添加点击事件
         let work = document.querySelector('.getNetwork')
+        // 这个是下载维赢的
         let down = document.querySelector('.downloadWork')
+        // 这个是下载派派的
+        let downPaiPai = document.querySelector('.downloadWorkByOms')
         if (work) {
             down.onclick = function() {
                 console.log('这就是我抓到的数据', list)
@@ -98,6 +101,23 @@ if (flag) {
                         }
                     }
                 }, 2000);
+            }
+            downPaiPai.onclick = function() {
+                console.log('这就是我抓到的数据', list)
+                let xlsxData = []
+                if (list.length) {
+                    // 证明有单子 那么就开始循环
+                    for (let index = 0; index < list.length; index++) {
+                        // 数量
+                            let item = list[index]
+                            let num = item.partialPackagedRate.split('/')[1]
+                            let code = item.receiverZip[0]
+                            // 这个地方去调用邮编帮我算吧 哎~
+                            xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'usps-手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
+                    }
+                    // 循环结束导出
+                    localStorage.setItem('cacheAliexpressByOms',JSON.stringify(xlsxData))
+                }
             }
         } 
     }

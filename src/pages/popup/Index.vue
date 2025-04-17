@@ -22,7 +22,9 @@
         <button @click="getOrderByAccount">根据回款匹配订单</button>
         <button @click="startNetWorkLook">开启网络监听</button>
         <button @click="endNetWorkLook">关闭网络监听</button>
+        <button @click="getZero">获取所在地区</button>
         <input type="file" style="visibility: hidden;" ref="fileIpt"  />
+        <input type="file" style="visibility: hidden;" ref="zeroIpt"  />
       </div>
       <div class="get_good_excel">
           <button @click="getRate" class="excel-button">获取商品售后率表格</button>
@@ -156,6 +158,28 @@ export default {
         })
       }
     })
+    this.$refs.zeroIpt.addEventListener('change', async (event) => {
+      let formData = new FormData()
+      formData.append('file', event.target.files[0])
+      const networkResult = await fetch('http://8.138.17.46:8800/sendOrder', {
+        method: 'post',
+        body: formData
+      }).then(res => res.json())
+      if (networkResult.statu === 200) {
+        const result = await fetch(baseURL + '/getZero', {
+            method: 'post',
+            body: formData
+        }).then(res => res.json())
+        // 查看返回之后的数据
+        console.log('这是返回的数据', result)
+        if (result.statu === 200) {
+          chrome.runtime.sendMessage({
+            message: 'getZero',
+            data: result.data
+          })
+        }
+      }
+    })
     // 感觉这个地方直接算
     const times = localStorage.getItem('times') ?? 0
     // 当前时间
@@ -248,7 +272,6 @@ export default {
         }
     },
     inputOrder(value) {
-      console.log(this.downloadList)
         if(this.downloadList.trim()) {
           //  我输入了,这个时候去进行转化成数组,然后告诉background
           chrome.runtime.sendMessage({
@@ -279,6 +302,10 @@ export default {
       })
     },
     delAccount() {},
+    getZero() {
+      // 要选择一个excel文件
+      this.$refs.zeroIpt.click()
+    }
   }
 }
 </script>

@@ -384,7 +384,7 @@ onload = () => {
         document.body.appendChild(get_btn)
         document.body.appendChild(del_btn)
         console.log(downloadList)
-    } else if (/amazon\.com/.test(location.href)) {
+    } else if (/amazon/.test(location.href)) {
         let amazonDownloadBtn = false
         // 如果是亚马逊就显示亚马逊的下载图标
         // 插入一个TEMUlogo进来

@@ -38,6 +38,10 @@ const STATECODE_TO_WAREHOUSEMAP = {
     'TX': 'DFW',
     'NY': 'JFK'
 }
+// 对应良铸的仓库创建的映射
+const BAO_LIANG_ZHU_CANGKU_MAP = {
+    '美东特拉华仓': '美东TD海外仓'
+}
 // 发货时的产品的尺寸数据
 let sendOrderData = null
 // 11.5一公斤 1000g
@@ -340,7 +344,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         localStorage.setItem('dianxiaomicookie', params.cookie)
     } else if (params.message == 'downloadFile') {
         // 拿到了
-        console.log('拿到了')
+        console.log('拿到了', params)
         
         // 下面先不走，我要发个请求
         const myHeader = new Headers()
@@ -476,6 +480,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
 
                 if (user_response.success) {
                     console.log(user_response)
+                    let warehousename = BAO_LIANG_ZHU_CANGKU_MAP[item.warehouse_name] ? BAO_LIANG_ZHU_CANGKU_MAP[item.warehouse_name] : item.warehouse_name
                     if (params.type === 'shipout') {
                         xlsxData.push([
                             item.order_send_info_list[0].parent_order_sn,
@@ -498,7 +503,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             '',
                             item.tracking_number,
                             item.shipping_company_name,
-                            item.warehouse_name,
+                            warehousename,
                             '',
                             ''
                         ]);
@@ -633,8 +638,18 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     let new_blob = new Blob([pdfResult], { type: 'application/pdf' })
                     // 转下载网址
                     let download_url = URL.createObjectURL(new_blob)
+                    let name = value.order_send_info_list[0].parent_order_sn
+                    if (params.filename.trim()) {
+                        // 证明有传递，这个地方要去判断格式是咋样的
+                        name = await formatName(value, params.filename)
+                        console.log(name)
+                        // 这个是生成时间,但感觉不合适
+                        // name = formatTime(new Date(), 'MM月DD日HH时mm分ss秒') + '-' + name
+                        // 用第几单这样子来计算吧
+                        name = `第${index + 1}单-${name}`
+                    }
                     downloadList.push({
-                        fileName: `${value.order_send_info_list[0].parent_order_sn}.pdf`,
+                        fileName: `${name}.pdf`,
                         url: download_url
                     })
                 }
@@ -2669,6 +2684,41 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         XLSX.writeFile(wb, './发货订单/速卖通发货单(派派).xlsx')
     }
 })
+
+// 根据传递进来的参数进行判断并且返回一个有效的名称
+async function formatName(data, param) {
+    // 格式化param
+    let lists = param.split('-')
+    let skc_id = data.order_send_info_list[0].product_skc_id
+    // 设置一个对象用来看要拿什么
+    const myHeader = new Headers()
+    myHeader.append('Content-Type', 'application/json')
+    const result = await fetch(baseURL + '/getGoodList', {
+        method: 'POST',
+        body: JSON.stringify({
+            mallid: currentMallId,
+            cookie: goodListCookie,
+            skc_item: skc_id
+        }),
+        headers: myHeader
+    }).then(res => res.json())
+    console.log(result)
+    if (result.statu === 200) {
+        let map_obj = {
+            'SKU': result.data[0].extCode,
+            '数量': data.order_send_info_list[0].quantity,
+            '仓库': data.warehouse_name,
+            '订单号': data.order_send_info_list[0].parent_order_sn
+        }
+        return lists.reduce((p, n) => {
+            if (p.trim()) {
+                return p + '-' + map_obj[n]
+            } else {
+                return p + map_obj[n]
+            }
+        }, '')
+    }
+}
 
 // 判断有没有库存
 function haveStock(sku, stockList, area) {

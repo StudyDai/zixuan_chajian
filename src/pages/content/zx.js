@@ -1,4 +1,4 @@
-console.log('成功植入浏览器,现在window已经是同一个,可以进行修改,要在manifest里面配置静态资源路径')
+console.log('成功植入浏览器,现在window已经是同一个,可以进行修改,要在manifest里面配置静态资源路径', chrome)
 // 保存原始的 XMLHttpRequest 构造函数
 const OriginalXMLHttpRequest = window.XMLHttpRequest;
 let list = []

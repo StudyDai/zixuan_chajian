@@ -513,7 +513,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                             item.order_send_info_list[0].parent_order_sn,
                             '',
                             'TEMU',
-                            warehouseName,
+                            warehousename,
                             '自有面单',
                             item.shipping_company_name,
                             item.tracking_number,
@@ -2685,8 +2685,24 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
     }
 })
 
+// 这个是和网页进行通讯用的 注意 manifest一定得写 "externally_connectable" 里面表明哪些网站可以通信
+// 然后你的网页的chrome就会多一个runtime 这个runtime发送的信息得用下面这个messageexternal来收,这样就可以实现网页和插件通信了
+// chrome.runtime.onMessageExternal.addListener(async (params, sender, sendResponse) => {
+//     if (params.message === 'demo') {
+//         console.log("我是网页的数据,触发下载")
+        
+//         chrome.downloads.download({
+//             url: params.url,
+//             saveAs: true,
+//             filename: 'demo.xlsx',
+//             conflictAction: 'uniquify'
+//         })
+//     }
+// })
+
 // 根据传递进来的参数进行判断并且返回一个有效的名称
 async function formatName(data, param) {
+    let warehousename = BAO_LIANG_ZHU_CANGKU_MAP[data.warehouse_name] ? BAO_LIANG_ZHU_CANGKU_MAP[data.warehouse_name] : data.warehouse_name
     // 格式化param
     let lists = param.split('-')
     let skc_id = data.order_send_info_list[0].product_skc_id
@@ -2707,7 +2723,7 @@ async function formatName(data, param) {
         let map_obj = {
             'SKU': result.data[0].extCode,
             '数量': data.order_send_info_list[0].quantity,
-            '仓库': data.warehouse_name,
+            '仓库': warehousename,
             '订单号': data.order_send_info_list[0].parent_order_sn
         }
         return lists.reduce((p, n) => {

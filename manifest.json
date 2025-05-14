@@ -22,5 +22,8 @@
     "css/*",
     "*"
   ],
+  "externally_connectable": {
+    "matches": ["http://*/*", "https://*/*"]
+  },
   "content_security_policy": "script-src 'self' 'unsafe-eval' blob:; object-src 'self'"
 }

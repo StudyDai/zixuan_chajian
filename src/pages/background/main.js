@@ -1,4 +1,5 @@
 import FFmpeg from "@ffmpeg/ffmpeg";
+import { compile } from "vue";
 const { createFFmpeg, fetchFile } = FFmpeg;
 const baseURL = 'http://192.168.188.47:8889'
 const ffmpeg = createFFmpeg({
@@ -789,6 +790,42 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 break;
             default:
                 console.log('暂无对应的资源下载')
+        }
+    } else if (params.message == 'downloadAlibabaPic') {
+        // 下载
+        if (params.picList.length) {
+            let timestramp = new Date().getTime()
+            params.picList.forEach((item, index) => {
+                chrome.downloads.download({
+                    url: item,
+                    saveAs: false,
+                    filename: `${timestramp}alibaba/商品图${index + 1}.jpg`,
+                    conflictAction: 'uniquify'
+                })
+            })
+        }
+    } else if (params.message == 'downloadAlibabaDetailPic') {
+        // 下载
+        if (params.picList.length) {
+            let timestramp = new Date().getTime()
+            params.picList.forEach((item, index) => {
+                chrome.downloads.download({
+                    url: item,
+                    saveAs: false,
+                    filename: `${timestramp}alibaba/商品详情图图${index + 1}.jpg`,
+                    conflictAction: 'uniquify'
+                })
+            })
+        }
+    } else if (params.message == 'downloadAlibabaVideo') {
+        let src = params.picList
+        if (src.trim()) {
+            chrome.downloads.download({
+                url: src,
+                saveAs: false,
+                filename: `商品主视频.mp4`,
+                conflictAction: 'uniquify'
+            })
         }
     } else if (params.message == 'download_TEMU_Video') {
         chrome.downloads.download({

@@ -159,7 +159,115 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 
 // 插入页面中
 onload = () => {
+    // 当进入alibaba的页面时候就给一个可以下载的按钮
     // 当进入shipout分仓页面的时候,提供一个按钮给导出订单
+    let alibabaReg = /https:\/\/www\.alibaba\.com\/product-detail/
+    if (alibabaReg.test(location.href)) {
+        // 证明是,那就进来看看
+        // // 插入一个alibabalogo进来
+        const alibabaEl = document.createElement('div')
+        let btnTimer = null
+        alibabaEl.style.position = "fixed"
+        alibabaEl.classList.add('alibaba_fix_logo')
+        alibabaEl.style.left = '15px'
+        alibabaEl.style.top = '50%'
+        alibabaEl.style.width = '100px'
+        alibabaEl.innerHTML = `
+            <img class="alibaba_svg" src="https://s.alicdn.com/@img/imgextra/i1/O1CN01e5zQ2S1cAWz26ivMo_!!6000000003560-2-tps-920-110.png"/>
+            <ul class="alibaba_menu_ul">
+                <li class="alibaba_menu_ul_li">
+                    <div class="down_800">下载商品主图</div>
+                    <div class="down_detail">下载详情页图</div>
+                    <div class="down_video">下载视频</div>
+                </li>
+            </ul>
+        `
+        document.body.appendChild(alibabaEl)
+        setTimeout(() => {
+            document.querySelector('.alibaba_svg').oncontextmenu = function(e) {
+                e.preventDefault()
+                // 我被触发了
+                const menuList = document.querySelector('.alibaba_menu_ul')
+                menuList.style.display = 'block'
+                // 给整个网页添加点击监听
+                document.onclick = function(e) {
+                    menuList.style.display = 'none'
+                    // 把监听给关了
+                    document.onclick = null
+                }
+            }
+            const allOption = document.querySelectorAll('.alibaba_menu_ul_li div')
+            for (let index = 0; index < allOption.length; index++) {
+                const each_menu_item = allOption[index]
+                each_menu_item.onclick = async function() {
+                    const item_className = this.className
+                    switch(item_className) {
+                        case 'down_800':
+                            let downloadAlibabaList = []
+                            // 可以下载了,先拿图地址
+                            let father_group = document.querySelector('.id-flex.id--mt-4.id-flex-col.id--mt-5.id-h-full')
+                            let groups = father_group.querySelectorAll("div[role='group']")
+                            if (groups.length) {
+                                // 郑敏有,那么就替换下里面的src,
+                                for (let index2 = 0; index2 < groups.length; index2++) {
+                                    let imgEl = groups[index2].querySelector('div')
+                                    let url = imgEl.style.backgroundImage
+                                    let url_reg = /(s\.alicdn\.com.*)"/
+                                    let result = url.match(url_reg)
+                                    if (result.length == 2) {
+                                        url = 'http://' + result[1].replaceAll('80','800')
+                                        downloadAlibabaList = downloadAlibabaList.concat(url)
+                                    }
+                                }
+                                console.log(downloadAlibabaList)
+                                // 发给background
+                                chrome.runtime.sendMessage({
+                                    message: 'downloadAlibabaPic',
+                                    picList: downloadAlibabaList
+                                })
+                            }
+                            break;
+                        case 'down_detail':
+                            // 存储的容器
+                            let detail_list = []
+                                let group_list = document.querySelector('#layout-other-wrapper')
+                                let haveIframe = group_list.querySelector('.id-relative.id-w-full')
+                                // 拿到iframe
+                                let iframeEl = haveIframe.querySelector('iframe')
+                                // 拿到内部文档
+                                let inDocument = iframeEl.contentDocument
+                                // 拿到我要的数据
+                                let inDom = inDocument.querySelector('.icbu-pc-detailManyImage')
+                                let divEls = inDom.querySelectorAll('div')
+                                // 拿到图片地址
+                                for (let index3 = 0; index3 < divEls.length; index3++) {
+                                    const element = divEls[index3].querySelector('img')
+                                    const img_url = 'https:' + element.dataset.src
+                                    detail_list = detail_list.concat(img_url)
+                                }
+                                // 发给background
+                                chrome.runtime.sendMessage({
+                                    message: 'downloadAlibabaDetailPic',
+                                    picList: detail_list
+                                })
+                            break;
+                        case 'down_video':
+                            let video_container = document.querySelector('.react-dove-video')
+                            let videoEl = video_container.querySelector('video')
+                            console.log(videoEl.src) 
+                            // 发给background
+                            chrome.runtime.sendMessage({
+                                message: 'downloadAlibabaVideo',
+                                picList: videoEl.src
+                            })
+                            break;
+                            default:
+                            console.log('以外操作')
+                    }
+                }
+            }   
+        });
+    }
     let shipoutReg = /https:\/\/oms\.shipout\.com\/b\/#\/order\/batch-fulfillment/
     let shipout_timer = null
     shipout_timer = setInterval(() => {

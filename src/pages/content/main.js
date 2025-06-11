@@ -158,7 +158,7 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 }
 
 // 插入页面中
-onload = () => {
+onload = () => {    
     // 当进入alibaba的页面时候就给一个可以下载的按钮
     // 当进入shipout分仓页面的时候,提供一个按钮给导出订单
     let alibabaReg = /https:\/\/www\.alibaba\.com\/product-detail/
@@ -740,7 +740,7 @@ onload = () => {
         if(res.type === 'rate') {
             // 汇率拿到了
             console.log('这是汇率信息', res)
-            insertRate(res.data.price, res.data.Title)
+            insertRate(res.data)
             chrome.runtime.sendMessage({
                 message: "getId",
                 data: {
@@ -1207,7 +1207,7 @@ onload = () => {
     // 插入js文件，暂时不用用到这个，这个结合那个网络拦截一起用
     injectFn(chrome.runtime.getURL('/js/zx.js'), "head", "javascript")
 
-    function insertRate(value, title) {
+    function insertRate(value) {
         const node = document.createElement('div')
         node.classList.add('my_rate')
         node.style.position = "fixed"
@@ -1216,13 +1216,23 @@ onload = () => {
         node.style.padding = "10px"
         node.style.zIndex = "9999"
         node.style.color = "#000"
+        let str = ''
+        // 循环下吧
+        for (let index = 1; index < value.length; index++) {
+            const element = value[index];
+            str += `
+                <h3 style="font-size: 14px; text-align: center">${element.Title}</h3>   
+                <input style="font-size: 16px" id="rate" type="text" value=${element.price} disabled style="font-weight: 700; text-align: center" />
+            `
+        }
+        // input style="font-size: 16px;margin: 10px 0" id="rmb" ype="text" placeholder="请输入人民币" />
+        // <input style="font-size: 16px" id="result" type="text" value=0 disabled style="font-weight: 700;" />     
         node.innerHTML = `
             <div class="calculate" style="font-size: 16px; border: 1px solid #000; padding: 15px; display: flex; justify-content: center; align-items: center; background-color: rgba(255,255,255,.8);position: absolute;top:0;right:0;transform:scale(0);transition: transform .5s ease; transform-origin: top right;flex-direction: column">
                 <p>汇率转换</p>
-                <h3 style="font-size: 14px; text-align: center">${title}</h3>
-                <input style="font-size: 16px" id="rate" type="text" value=${value} disabled style="font-weight: 700; text-align: center" />
-                <input style="font-size: 16px;margin: 10px 0" id="rmb" ype="text" placeholder="请输入人民币" />
-                <input style="font-size: 16px" id="result" type="text" value=0 disabled style="font-weight: 700;" />
+                <h3 style="font-size: 14px; text-align: center">${value[0].Title}</h3>
+                <input style="font-size: 16px" id="rate" type="text" value=${value[0].price} disabled style="font-weight: 700; text-align: center" />
+                ${str}
             </div>
             <span class="close" style="width: 25px;height:25px;padding: 5px;border-radius: 50%; background-color: #000;position:absolute;top:0;right: 0;transform:translate(50%,-50%);cursor:pointer;">
                 <svg class="close_icon" style="height: 100%; width: 100%;" t="1738912985706" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -1249,21 +1259,22 @@ onload = () => {
         // 插入之后设置一个监听, 然后使用防抖
         const rmb = document.getElementById('rmb')
         const calculate = document.querySelector('.calculate')
-        rmb.addEventListener('input', _debounce(function() {
-            // 在这里面要拿到我的input输入,然后拿到值,之后进行计算
-            const result = document.getElementById('result')
-            const rate = document.getElementById('rate')
-            if(rmb.value) {
-                // 这个是人民币
-                const amount = parseInt(rmb.value)
-                // 这个是汇率
-                const rateValue = parseFloat(rate.value)
-                // 然后进行计算,赋值下结果
-                result.value = (amount * rateValue).toFixed(3)
-            } else {
-                result.value = 0
-            }
-        }))
+        // 这个地方本身是用来给用户输入然后可以动态计算我多少美金等于多少人民币的，但是因为这个需求不是很多人需要，所以删除掉了
+        // rmb.addEventListener('input', _debounce(function() {
+        //     // 在这里面要拿到我的input输入,然后拿到值,之后进行计算
+        //     const result = document.getElementById('result')
+        //     const rate = document.getElementById('rate')
+        //     if(rmb.value) {
+        //         // 这个是人民币
+        //         const amount = parseInt(rmb.value)
+        //         // 这个是汇率
+        //         const rateValue = parseFloat(rate.value)
+        //         // 然后进行计算,赋值下结果
+        //         result.value = (amount * rateValue).toFixed(3)
+        //     } else {
+        //         result.value = 0
+        //     }
+        // }))
         // 当点击关闭按钮的时候,收缩父亲
         document.querySelector('.close .close_icon').onclick = function() {
             document.querySelector('.rate_icon').style.display = 'block'

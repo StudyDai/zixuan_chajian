@@ -3,49 +3,87 @@ console.log('成功植入浏览器,现在window已经是同一个,可以进行�
 const OriginalXMLHttpRequest = window.XMLHttpRequest;
 let list = []
 let timer = null
-let my_xhr = null, isCollect = false
+let my_xhr = null, isCollect = false, collectData = false
 const flag = localStorage.getItem('start_look') ? JSON.parse(localStorage.getItem('start_look')) : false
+const requestMap = {
 
+}
 if (flag) {
     console.log(flag)
     // 重写 XMLHttpRequest 构造函数
     window.XMLHttpRequest = function () {
+        const temureg = /https:\/\/www\.temu\.com\/search_result\.html/
+        if (temureg.test(location.href)) {
+            // 这个地方插入一个按钮
+            const divEl = document.createElement('div')
+            divEl.style.position = 'fixed'
+            divEl.style.top = '250px'
+            divEl.style.right = '80px'
+            divEl.innerText = '点击开始监听'
+            divEl.style.cursor = 'pointer'
+            divEl.onclick = function() {
+                console.log('我启动了')
+                collectData = true
+                // 看看里面存了什么
+                console.log(requestMap.list_el)
+                if (requestMap.list_el) {
+                    // 发给background
+                    chrome.runtime.sendMessage('nniceknhnmnjjhakclikapdojinhiblb', {
+                        message: 'sendWordList',
+                        wordList: requestMap.list_el.responseText
+                    })
+                }
+            }
+            document.body.appendChild(divEl)
+        }
         const xhr = new OriginalXMLHttpRequest();
+        my_xhr = xhr
         let requestBody;
         // 重写 send 方法，获取请求体
         const originalSend = xhr.send;
         const originalOpen = xhr.open
         let haveSave = false
-
-            xhr.open = function(...data) {
-                my_xhr = xhr
-                // 拿到地址
-                requestUrl = data
-                // 如果是我要的分仓地址,那么就保存数据到本地
-                console.log(requestUrl)
-                // https://seller-acs.aliexpress.com/h5/mtop.asf.local.supply.fulfillment.shipping.fulfill.record.get/1.0/
-                let reg = /seller-acs\.aliexpress\.com\/h5\/mtop\.asf\.local\.supply\.fulfillment\.shipping\.fulfill\.record\.get\/1\.0\//
-                let reg2 = /api\/shipout-shipment\/shipment\/getShipmentByOrderId/
-                if (reg.test(requestUrl[1])) {
-                    console.log('Request Url', requestUrl)
-                } else if (reg2.test(requestUrl[1])) {
-                    // 那么就设置我要保存
-                    haveSave = true
-                }
-                originalOpen.call(this, ...data)
+        let temuSave = false
+        xhr.open = function(...data) {
+            // 拿到地址
+            requestUrl = data
+            // 如果是我要的分仓地址,那么就保存数据到本地
+            // 看看我的temu的"/api/poppy/v1/search?scene=search"
+            console.log(requestUrl)
+            // https://seller-acs.aliexpress.com/h5/mtop.asf.local.supply.fulfillment.shipping.fulfill.record.get/1.0/
+            let reg = /seller-acs\.aliexpress\.com\/h5\/mtop\.asf\.local\.supply\.fulfillment\.shipping\.fulfill\.record\.get\/1\.0\//
+            let reg2 = /api\/shipout-shipment\/shipment\/getShipmentByOrderId/
+            let reg3 = /api\/poppy\/v1\/search\?scene=search/
+            // temu的拿产品路径
+            // let temuReg = /https:\/\/www\.temu\.com\/api\/poppy\/v1\/search\?scene=search/
+            if (reg.test(requestUrl[1])) {
+                console.log('Request Url', requestUrl)
+            } else if (reg2.test(requestUrl[1])) {
+                // 那么就设置我要保存
+                haveSave = true
+            } else if (reg3.test(requestUrl[1])) {
+                requestMap.list_el = xhr
+            } else if (collectData) {
+                
             }
-            xhr.send = function (...data) {
-                requestBody = data;
-                console.log(data)
-                if (isCollect) {
-                    isCollect = false
-                    console.log('Request Body:', requestBody);
-                } else if (haveSave) {
-                    haveSave = false
-                    localStorage.setItem('shipout_params', requestBody)
-                }
-                originalSend.call(this, ...data);
-            };
+            originalOpen.call(this, ...data)
+        }
+        xhr.send = function (...data) {
+            requestBody = data;
+            console.log('我是发送请求', data)
+            if (isCollect) {
+                isCollect = false
+                console.log('Request Body:', requestBody);
+            } else if (haveSave) {
+                haveSave = false
+                localStorage.setItem('shipout_params', requestBody)
+            } else if (temuSave) {
+                // 包是的,所以锁掉
+                temuSave = false
+                console.log('按道理应该是优的啊', requestBody)
+            }
+            originalSend.call(this, ...data);
+        };
         return xhr;
     }
     const reg = /https:\/\/csp\.aliexpress\.com\/m_apps\/logistics/
@@ -113,7 +151,7 @@ if (flag) {
                             let num = item.partialPackagedRate.split('/')[1]
                             let code = item.receiverZip[0]
                             // 这个地方去调用邮编帮我算吧 哎~
-                            xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'usps-手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
+                            xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'usps-手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY','',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
                     }
                     // 循环结束导出
                     localStorage.setItem('cacheAliexpressByOms',JSON.stringify(xlsxData))

@@ -1,7 +1,7 @@
 import FFmpeg from "@ffmpeg/ffmpeg";
 import { compile } from "vue";
 const { createFFmpeg, fetchFile } = FFmpeg;
-const baseURL = 'http://192.168.188.47:8889'
+const baseURL = 'http://192.168.188.77:8889'
 const ffmpeg = createFFmpeg({
     corePath: chrome.runtime.getURL("/js/ffmpeg-core.js"), // 核心文件的路径
     log: true, // 是否在控制台打印日志，true => 打印
@@ -73,10 +73,10 @@ let PaiPaiWrehouseId = [
 ]
 let accountList = localStorage.getItem('accountList') ? JSON.parse(localStorage.getItem('accountList')) : []
 // 页面加载完就触发我这个
-async function getRate() {
+async function getRate(from_money = "美元", to_money = "人民币") {
     const result = await exchangeRate({
-        "from_money": ChineseToCode("美元"),
-        "to_money": ChineseToCode("人民币"),
+        "from_money": ChineseToCode(from_money),
+        "to_money": ChineseToCode(to_money),
         "from_money_num": "1",
         "srcid": "5293",
         "sid": "60277_61027_60853_61362_61679_61734_61780_61822_61844_61777_61804_61879_61986",
@@ -126,22 +126,6 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 let amazonVideoList = []
 
 // 直接监听
-let once = true
-chrome.webRequest.onBeforeRequest.addListener(
-    function(details) {
-        console.log('转化到了')
-        let rawFormData = details.requestBody.raw;
-        let decoder = new TextDecoder('utf-8');
-        sendOrderData = decoder.decode(rawFormData[0].bytes)
-        // 这个地方 告诉contentjs即可
-        setTimeout(() => {
-            MessageToWindow(currentActiveId, 'hasOrderData')   
-        }, 2000);
-                
-    },
-    {urls: ["https://agentseller-us.temu.com/mms/eagle/package/online/query_sku_history_package"]}, // 根据需要调整URL过滤规则
-    ["blocking", "requestBody"] // 请求权限以访问请求体
-);
 
 chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
     const XLSX = require('xlsx')
@@ -171,7 +155,16 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
     })
     // mergeTsToMp4([], 'mergedVideo.mp4');
     if (params.message === 'getRate') {
-        const result = await getRate();
+        // 现在要美元和欧元
+        let money_obj = {
+            '美元': '人民币',
+            '欧元': '人民币'
+        }
+        let result_obj = []
+        for (let index = 0; index < Object.keys(money_obj).length; index++) {
+            const result = await getRate(Object.keys(money_obj)[index]);    
+            result_obj.push(result)
+        }
         // 把汇率的信息发送给前台
         // 发给Content,Content展示到前台
         chrome.tabs.query({ active: true }, (tabs) => {
@@ -181,7 +174,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             const currentWindow = currentTab.length && currentTab[0]
             console.log(currentWindow, '2')
             currentActiveId = currentWindow.id
-            MessageToWindow(currentWindow.id, 'rate', result)
+            MessageToWindow(currentWindow.id, 'rate', result_obj)
         })
     } else if (params.message === 'getAbroadStock') {
         // 证明进来的这个地方是要去发送请求,拿到我shipout的token,一般一次就是24小时,先从本地拿
@@ -2361,8 +2354,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 "page_number": 1,
                 "page_size": 200,
                 "sort_type": 1,
-                "call_begin_time": new Date('2025-2-1').getTime() / 1000,
-                "call_end_time": new Date('2025-2-28').getTime() / 1000
+                "call_begin_time": new Date('2025-5-1').getTime() / 1000,
+                "call_end_time": new Date('2025-5-31').getTime() / 1000
             })
         }).then(res => res.json())
         // 拿下产品信息
@@ -2711,7 +2704,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // 这个是打印出来派派的
         // 要多加一行
         let xlsxData = JSON.parse(params.data)
-        xlsxData.unshift(["订单号","参考号","平台","发货仓库","面单类型","物流","运单号","商品 SKU","商品单价","数量","订单金额","币种","收件人","手机号","邮箱","邮政编码","国家","省 / 州","市 / 府","区 / 县","详细地址","详细地址 2"])
+        xlsxData.unshift(["订单号","参考号","平台","发货仓库","面单类型","物流","运单号","商品 SKU","商品单价","数量","订单金额","币种","货主","收件人","手机号","邮箱","邮政编码","国家","省 / 州","市 / 府","区 / 县","详细地址","详细地址 2"])
         const wb = XLSX.utils.book_new()
         // 生成excel对应的数据
         const ws = XLSX.utils.aoa_to_sheet(xlsxData)
@@ -2719,30 +2712,45 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         XLSX.utils.book_append_sheet(wb, ws, '速卖通批量发货订单')
         // 导出
         XLSX.writeFile(wb, './发货订单/速卖通发货单(派派).xlsx')
-    }
+    } 
 })
 
 // 这个是和网页进行通讯用的 注意 manifest一定得写 "externally_connectable" 里面表明哪些网站可以通信
 // 然后你的网页的chrome就会多一个runtime 这个runtime发送的信息得用下面这个messageexternal来收,这样就可以实现网页和插件通信了
-// chrome.runtime.onMessageExternal.addListener(async (params, sender, sendResponse) => {
-//     if (params.message === 'demo') {
-//         console.log("我是网页的数据,触发下载")
+chrome.runtime.onMessageExternal.addListener(async (params, sender, sendResponse) => {
+    const XLSX = require('xlsx')
+    if (params.message === 'demo') {
+        console.log("我是网页的数据,触发下载")
         
-//         chrome.downloads.download({
-//             url: params.url,
-//             saveAs: true,
-//             filename: 'demo.xlsx',
-//             conflictAction: 'uniquify'
-//         })
-//     }
-// })
+        chrome.downloads.download({
+            url: params.url,
+            saveAs: true,
+            filename: 'demo.xlsx',
+            conflictAction: 'uniquify'
+        })
+    } else if (params.message == 'sendWordList') {
+        const data = JSON.parse(params.wordList)
+        const list = data.result.data.goods_list
+        // 格式化一下
+        const result = list.map(item => [item.page_alt, item.sales_num, '翻译'])
+        // 导出xlsx 创建一个
+        const wb = XLSX.utils.book_new()
+        // 二维数组转数据
+        result.unshift(['单词', '出现次数', '翻译'],)
+        const ws = XLSX.utils.aoa_to_sheet(result)
+        // 添加到表里面
+        XLSX.utils.book_append_sheet(wb, ws, '关键词库-' + params.word)
+        // 保存出去
+        XLSX.writeFile(wb, '关键词/关键词.xlsx')
+    }
+})
 
 // 根据传递进来的参数进行判断并且返回一个有效的名称
 async function formatName(data, param) {
     let warehousename = BAO_LIANG_ZHU_CANGKU_MAP[data.warehouse_name] ? BAO_LIANG_ZHU_CANGKU_MAP[data.warehouse_name] : data.warehouse_name
     // 格式化param
     let lists = param.split('-')
-    let skc_id = data.order_send_info_list[0].product_skc_id
+    let sku_id = data.order_send_info_list[0].product_sku_id
     // 设置一个对象用来看要拿什么
     const myHeader = new Headers()
     myHeader.append('Content-Type', 'application/json')
@@ -2751,14 +2759,15 @@ async function formatName(data, param) {
         body: JSON.stringify({
             mallid: currentMallId,
             cookie: goodListCookie,
-            skc_item: skc_id
+            sku_item: sku_id
         }),
         headers: myHeader
     }).then(res => res.json())
     console.log(result)
     if (result.statu === 200) {
+        let good_sku = result.data[0].productSkuSummaries.find(g => g.productSkuId == sku_id)
         let map_obj = {
-            'SKU': result.data[0].extCode,
+            'SKU': good_sku.extCode,
             '数量': data.order_send_info_list[0].quantity,
             '仓库': warehousename,
             '订单号': data.order_send_info_list[0].parent_order_sn

@@ -1,0 +1,323 @@
+.dialog_attr {
+    background-color: #fff;
+    /* 这个是用来挪动的 */
+    position: fixed;
+    z-index: 9998;
+    top: 120px;
+    right: 20px;
+    border: 10px solid #000;
+    padding: 15px;
+    font-size: 18px;
+}
+
+.stock_close {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    height: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #000000c2;
+    color: #fff;
+    font-weight: 700;
+    transform: translateY(-100%);
+    box-sizing: border-box;
+    border-top: 10px solid #000;
+    border-left: 10px solid #000;
+    border-right: 10px solid #000;
+}
+
+.stock_close label {
+    flex-shrink: 0;
+}
+
+.stock_close input {
+    width: 55px;
+}
+.stock_close .svg_container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 30px;
+    cursor: pointer;
+}
+
+/* 亚马逊下载按钮样式 */
+.amazon_download_btn {
+    background-color: rgb(93, 97, 93);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all .5s ease;
+    display: flex;
+    margin-top: 15px;
+    justify-content: center;
+}
+.amazon_download_btn:hover {
+    background-color: rgb(31, 105, 31);
+}
+.text_1 {
+    position: fixed;
+    top: 100px;
+    right: 50px;
+    z-index: 9999;
+}
+
+.temu_fix_logo,
+.amazon_fix_logo,
+.alibaba_fix_logo {
+    z-index: 9999;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+}
+
+.temu_fix_logo svg,
+.amazon_fix_logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+.temu_fix_logo .temu_menu_ul,
+.amazon_fix_logo .amazon_menu_ul,
+.alibaba_fix_logo .alibaba_menu_ul {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.temu_fix_logo .temu_menu_ul .menu_ul_li div,
+.amazon_fix_logo .amazon_menu_ul .amazon_menu_ul_li div,
+.alibaba_fix_logo .alibaba_menu_ul .alibaba_menu_ul_li div {
+    position: relative;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: all .3s linear;
+}
+
+.temu_fix_logo .temu_menu_ul .menu_ul_li div:hover,
+.amazon_fix_logo .amazon_menu_ul .amazon_menu_ul_li div:hover,
+.alibaba_fix_logo .alibaba_menu_ul .alibaba_menu_ul_li div:hover {
+    border-bottom: 1px solid #ccc;
+    color: red;
+    font-weight: 700;
+}
+
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 14px;
+}
+
+ul li {
+    list-style: none!important;
+}
+
+ul.tableEl {
+    border-top: 2px solid #000;
+    padding-top: 5px;
+    overflow-y: auto;
+    height: 260px;
+}
+
+ul.tableEl ul {
+    margin-bottom: 10px;
+    border-bottom: 2px solid #999;
+}
+
+ul.tableEl ul li {
+    width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 0;
+    font-size: 15px;
+}
+
+.search {
+    position: relative;
+}
+
+div.tip {
+    display: none;
+}
+
+div.visible {
+    display: block;
+}
+
+ul.tableEl {
+    display: block;
+}
+ul.hide {
+    display: none;
+}
+
+.search .line {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 2px;
+    background-color: blue;
+    transform-origin: right top;
+    transform: scaleX(0);
+    
+    transition: transform .3s linear;
+}
+
+.search #search_Stock:focus ~ .line {
+    /* 修改scale */
+    transform-origin: left top;
+    transform: scaleX(1);
+}
+
+#search_Stock {
+    position: relative;
+    padding: 5px;
+    border: none;
+    outline: none;
+}
+
+.close_icon {
+    display: none;
+}
+
+.rate_icon {
+    display: block;
+}
+
+.table-container table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 16px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+.header-row th {
+    padding: 12px 5px;
+    border: 1px solid #ddd;
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+.quantity-col .numIpt{
+    display: block;
+    width: 50px;
+    outline: none;
+    border: none;
+    border-bottom: 2px solid #fff;
+    background-color: transparent;
+    text-align: center;
+}
+.data-row td, .total-row td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    background-color: #999;
+}
+.data-row:nth-child(even), .total-row:nth-child(even) {
+    background-color: #f3f3f3;
+}
+.data-row:hover, .total-row:hover {
+    background-color: #ddd;
+}
+.caption-style {
+    font-size: 20px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+.sizeElement {
+    position: fixed;
+    top: 50px;
+    right: 10px;
+    z-index: 9999;
+}
+
+.download-order {
+    position: fixed;
+    top: 150px;
+    right: 30px;
+    z-index: 9998;
+    border-radius: 5px;
+    border: 1px solid #99999981;
+    background-color: rgba(165, 165, 245, 0.486);
+    padding: 5px 8px;
+    cursor: pointer;
+}
+
+.getNetwork, .downloadWork,
+.downloadWorkByOms {
+    padding: 10px;
+    color: red;
+    font-size: 18px;
+    position: fixed;
+    top: 100px;
+    right: 20px;
+    cursor: pointer;
+    z-index: 9999;
+}
+.downloadWorkByOms {
+    top: 200px;
+    color: blue;
+}
+.downloadWork {
+    top: 150px;
+    color:green;
+}
+
+.downloadAliexpressByOms {
+    position: fixed;
+    left: 0;
+    bottom: 100px;
+}
+
+
+.download_shipout {
+    position: fixed;
+    z-index: 9999;
+    top: 100px;
+    right: 20px;
+    color: rgb(0, 0, 0);
+    font-size: 18px;
+    font-weight: 400;
+    padding: 5px;
+    background-color: rgb(167, 236, 167);
+    cursor: pointer;
+}
+
+
+.get_add,
+.del_add {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    z-index: 9999;
+    padding: 5px;
+    font-size: 18px;
+    color: #77acf1;
+    background-color: #f25e18;
+    top: 10px;
+    right: 5px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.del_add {
+    top: 80px;
+    background-color: red;
+}

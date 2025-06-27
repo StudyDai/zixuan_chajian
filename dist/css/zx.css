@@ -321,3 +321,17 @@ ul.hide {
     top: 80px;
     background-color: red;
 }
+
+.download_detail_pic {
+    position: fixed;
+    bottom: 50px;
+    right: 80px;
+    background-color: green;
+}
+.position_piliang {
+    position: fixed; 
+    top: 25px; 
+    right: 50px; 
+    color: green;
+    z-index: 9999;
+}

@@ -393,6 +393,8 @@ onload = () => {
                         if (markEl) markEl.remove()
                         if (popupEl) popupEl.remove()
                         break;
+                    case 'down_detail_pic':
+                        break;
                     default:
                         console.log('以外操作')
                 }
@@ -489,8 +491,8 @@ onload = () => {
         del_btn.onclick = function() {
             window.open(chrome.runtime.getURL('/options.html'))
         }
-        document.body.appendChild(get_btn)
-        document.body.appendChild(del_btn)
+        // document.body.appendChild(get_btn)
+        // document.body.appendChild(del_btn)
         console.log(downloadList)
     } else if (/amazon/.test(location.href)) {
         let amazonDownloadBtn = false
@@ -719,6 +721,72 @@ onload = () => {
                 }
             }   
         });
+    } else if (/https:\/\/detail\.tmall\.com/.test(location.href) || /https:\/\/item.taobao\.com/.test(location.href)) {
+        // 插入一个按钮
+        let div = document.createElement('div')
+        div.innerText = '下载淘宝详情图片'
+        div.classList.add('download_detail_pic')
+        div.onclick = function() {
+            let container = document.getElementById("content")
+            console.log(container)
+            let groups = container.querySelectorAll(".descV8-singleImage")   
+            let downloadFile = []
+            for (let index = 0; index < groups.length; index++) {
+                const group = groups[index];
+                let imgEl = group.querySelector("img")
+                let src = imgEl.dataset.src ? imgEl.dataset.src : imgEl.src
+                downloadFile = downloadFile.concat(src)
+            }
+            // 发给back
+            chrome.runtime.sendMessage({
+                message: 'down_taobao_detail',
+                data: JSON.stringify(downloadFile)
+            })
+        }
+        document.body.appendChild(div)
+    }
+    if (/https:\/\/seller\.kuajingmaihuo\.com\/main\/product/.test(location.href)) {
+        console.log('启动!')
+        var divEl = document.createElement('div')
+        divEl.className = 'position_piliang'
+        divEl.innerHTML = `
+            <button id="piliang">批量填写价格</button>
+        `
+        document.body.appendChild(divEl)
+        let btnEl = document.getElementById('piliang')
+        btnEl.onclick = async function() {
+            let tableEl = document.querySelector('.TB_tableWrapper_5-111-0')
+            let bodyEl = tableEl.querySelector('tbody[data-testid="beast-core-table-middle-tbody"]')
+            let allIpt = bodyEl.querySelectorAll('tr[data-testid="beast-core-table-body-tr"]')
+            for (let index = 0; index < allIpt.length; index++) {
+                const element = allIpt[index];
+                // 拿价格element
+                const priceElement = element.querySelector('.TB_cellTextAlignRight_5-111-0')
+                // 如果拿得到就直接拿价格
+                let normal_price = 0
+                if (priceElement) {
+                    // 如果存在,那么就直接拿第二个span的text
+                    let spanEl = priceElement.querySelector('span')
+                    let price = spanEl.querySelectorAll('span')
+                    normal_price = price[1].innerText
+                    console.log('当前价格', normal_price)
+                }
+
+                // 拿input
+                const iptFather = element.querySelector('input[data-testid="beast-core-inputNumber-htmlInput"]')
+                if (iptFather) {
+                    // iptFather.value = (normal_price - 0.01).toFixed(2)
+                    // console.log(iptFather)
+                    iptFather.focus()
+                    iptFather.value = (normal_price - 0.01).toFixed(2)
+                    // 加了这俩就可以生效了，模拟用户的输入
+                    iptFather.dispatchEvent(new Event('input', { bubbles: true }));
+                    iptFather.dispatchEvent(new Event('change', { bubbles: true }));
+                    await delayFn()
+                }
+            }
+            console.log()
+        }
     }
 
     // 将默认的鼠标移除掉
@@ -786,6 +854,7 @@ onload = () => {
                         // 当前拿到的就是一个SKU而已
                         const save_Sku = SortList[SortList_index]
                         const reg = new RegExp(`${save_Sku}(?![a-zA-Z])`, 'i')
+                        console.log(currentSku,'sku')
                         // 拿到验证结果,如果在currentSku里面能匹配上,那证明我是保存过的
                         if(reg.test(currentSku)) {
                             // 证明是保存过的,开始循环,看看我当前这个SKU的仓库是不是在SortList里面有
@@ -953,6 +1022,9 @@ onload = () => {
                     <label for="kuangdu">
                         <span>寬度</span>
                     </label>
+                    <label>
+                        <span class="out">导出</span>
+                    </label>
                     <input id="changdu" placeholder="请输入宽度" value="260" />
                     <div class="svg_container">
                         <svg style="width: inherit; height: auto" t="1740324638854" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -979,6 +1051,13 @@ onload = () => {
             `
             // 插入网页
             document.body.appendChild(dialogEl)
+            document.querySelector('.out').onclick = function() {
+                // 发给background
+                chrome.runtime.sendMessage({
+                    message: 'downloadStock',
+                    list: SortObject
+                })
+            }
             // 给他加一个点击按下和移动以及松开的事件
             let moveX, moveY, endX=0,endY=0, isDown
             // document.querySelector('.dialog_attr').onmousedown = function(e) {

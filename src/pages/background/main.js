@@ -2993,6 +2993,49 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         let day = date.getDate()
         XLSX.utils.book_append_sheet(wb, ws, `${month}月${day}日 总库存表`)
         XLSX.writeFile(wb, '总库存表.xlsx')
+    } else if (params.message == 'getMoTianLunDiscount') {
+        // 反正每十分钟给我弹窗一次
+        let startTime = 10 * 60 * 1000
+        setInterval(async () => {
+            const url = 'https://m.motianlun.cn/mtl_recommendapi/pub/search/v3/search?src=m_web&time=1751364370605&ver=6.38.8'
+            const resp = await fetch(url, {
+                method: 'post',
+                body: JSON.stringify({
+                    "src": "m_web",
+                    "ver": "6.38.8",
+                    "time": "1751364082190",
+                    "cityId": "4401",
+                    "keyword": params.singer,
+                    "offset": 0,
+                    "length": 10
+                  }),
+                  headers: {
+                    'content-type': 'application/json'
+                  }
+            }).then(res => res.json())
+            console.log(resp, '看看')
+            if (resp.comments == '成功') {
+                // 拿到当前黄妈的折扣
+                let data = resp.data.searchData
+                // result
+                let result = data.find(item => item.venueName == "广州亚运城综合体育馆")
+                // 看折扣
+                let discount = result.discountInfo.num
+                // 弹窗
+                chrome.notifications.create('5201314',{
+                    type: 'basic',
+                    iconUrl: chrome.runtime.getURL("/public/icon.jpg"),
+                    title: '当前折扣',
+                    message: discount + '折'
+                }, (notificationId) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('创建通知失败:', chrome.runtime.lastError.message);
+                    } else {
+                        console.log('通知创建成功，ID:', notificationId);
+                    }
+                })
+            }
+        }, startTime);
     }
 })
 // 分单词的函数

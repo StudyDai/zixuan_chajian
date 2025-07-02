@@ -11,7 +11,7 @@
     "page": "background.html",
     "persistent": true 
   },
-  "permissions": ["http://*/*", "https://*/*", "tabs", "contextMenus", "notifications","webRequest", "webRequestBlocking", "storage", "activeTab", "declarativeContent", "cookies", "downloads"],
+  "permissions": ["http://*/*", "https://*/*", "tabs","notifications", "contextMenus", "notifications","webRequest", "webRequestBlocking", "storage", "activeTab", "declarativeContent", "cookies", "downloads"],
   "content_scripts": [{
     "matches": ["http://*/*", "https://*/*"],
     "js": ["js/content.js"],

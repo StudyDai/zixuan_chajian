@@ -159,6 +159,15 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 
 // 插入页面中
 onload = () => {    
+    // 如果是进入了摩天轮,那么就请求这个地址
+    const mtlReg = /https:\/\/m\.motianlun\.cn\/uni\/package\-functional\-pages\/search\/search/
+    if (mtlReg.test(location.href)) {
+        console.log('我进来啦')
+        chrome.runtime.sendMessage({
+            message: 'getMoTianLunDiscount',
+            singer: '黄绮珊'
+        })
+    }
     // 当进入alibaba的页面时候就给一个可以下载的按钮
     // 当进入shipout分仓页面的时候,提供一个按钮给导出订单
     let alibabaReg = /https:\/\/www\.alibaba\.com\/product-detail/

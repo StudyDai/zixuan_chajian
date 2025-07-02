@@ -43,7 +43,7 @@
           <button @click="inputOrder" class="export-button">批量导出派派面单</button>
           <button @click="inputOrder('shipout')" class="export-button blue">批量导出维赢(shipout)面单</button>
           <input class="sendFormat" v-model="downloadName" placeholder="请输入文件命名规范,默认是订单号" />
-          <span class="tip">目前命名规范可选<span class="red">{SKU},{数量},{仓库},{订单号},默认以-分隔,</span><span class="green">例:SKU-仓库-数量</span></span>
+          <span class="tip">目前命名规范可选<span class="red">{SKU},{数量},{仓库},{订单号},默认以-分隔,</span><span class="green">例:SKU-仓库-数量</span><button @click="copyVal">复制</button></span>
           <input id="order_ipt" type="text" v-model="downloadList" placeholder="请输入以逗号或者空格分隔的订单号" class="order-input"/>
       </div>
       <table>
@@ -196,6 +196,10 @@ export default {
     }
   },
   methods: {
+    copyVal(event) {
+      event.preventDefault()
+      navigator.clipboard.writeText('SKU-仓库-数量')
+    },
     startNetWorkLook() {
       // 不监听
       chrome.runtime.sendMessage({

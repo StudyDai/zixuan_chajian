@@ -545,8 +545,12 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         myHeader.append('Mallid', currentMallId)
         myHeader.append('Content-Type', 'application/json')
         // const one_url = 'https://pftka-us.temu.com/pmm/api/pmm/defined'
-
-        const url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+        let url = ''
+        if (/us/g.test(location.href))  {
+            url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+        } else {
+            url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
+        }
         const response = await fetch(url, {
             method: 'POST',
             headers: myHeader,
@@ -610,8 +614,16 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     // }
                 }
             })
+            // 这个地方要分辨是美国的还是加拿大的
+            let order_url = ''
+            if (/us/g.test(location.href)) {
+                // 有就进来,是美国    
+                order_url = 'https://agentseller-us.temu.com/kirogi/bg/mms/recentOrderList'
+            } else {
+                // 加拿大
+                order_url = 'https://agentseller.temu.com/kirogi/bg/mms/recentOrderList'
+            }
             // 这个地方去拿订单列表
-            const order_url = 'https://agentseller-us.temu.com/kirogi/bg/mms/recentOrderList'
             // 拿到所有的订单
             let currentPage = 1
             async function getData(order_url, size, data) {
@@ -662,7 +674,14 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 });
                 console.log('当前找到的', currentOrder, item, globalOrderList)
                 // 在这里还要拿到用户的信息
-                const user_url = 'https://agentseller-us.temu.com/mms/orchid/address/snapshot/order_shipping_address_query';
+                let user_url = ''
+                if (/us/g.test(location.href)) {
+                    // 有就进来,是美国    
+                    user_url = 'https://agentseller-us.temu.com/mms/orchid/address/snapshot/order_shipping_address_query'
+                } else {
+                    // 加拿大
+                    user_url = 'https://agentseller.temu.com/mms/orchid/address/snapshot/order_shipping_address_query'
+                }
                 const user_response = await fetch(user_url, {
                     method: 'POST',
                     headers: myHeader,
@@ -753,7 +772,15 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             console.log(format_Data)
         }
         // 去请求pdf地址
-        const pdf_url = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
+        let pdf_url = ''
+        if (/us/g.test(location.href)) {
+            // 有就进来,是美国    
+            pdf_url = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
+        } else {
+            // 加拿大
+            pdf_url = 'https://agentseller.temu.com/mms/eagle/package/batch_print_shipping_label'
+        }
+        
         const downloadList = []
         // 这个下载方法仅支持平台允许下载的订单，而第二种方法是直接调用平台在线保存的方式进行保存
         // function getUrl() {
@@ -810,7 +837,14 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 header.append('cookie', currentCookie)
                 header.append('Mallid', currentMallId)
                 header.append('content-type', 'application/json')
-                const url2 = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
+                let url2 = ''
+                if (/us/g.test(location.href)) {
+                    // 有就进来,是美国    
+                    url2 = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
+                } else {
+                    // 加拿大
+                    url2 = 'https://agentseller.temu.com/mms/eagle/package/batch_print_shipping_label'
+                }
                 const response2 = await fetch(url2, {
                     method: 'POST',
                     headers: header,
@@ -1766,7 +1800,11 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     })
                     console.log('格式化之后的所有活动出单都在这里', activitySaleList)
                     // 这个地方要拿面单
-                    const url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+                    if (/us/g.test(location.href))  {
+                        url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+                    } else {
+                        url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
+                    }
                     async function getMianDanData(order_url, data, query) {
                         const order_response = await fetch(order_url, {
                             method: 'POST',
@@ -2541,7 +2579,11 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             }
         }
     } else if (params.message == 'getWarehouseOder') {
-        const url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+        if (/us/g.test(location.href))  {
+            url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
+        } else {
+            url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
+        }
         const myHeader = new Headers()
         myHeader.set('mallid', currentMallId)
         myHeader.set('cookie', currentCookie)
@@ -3021,19 +3063,37 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 let result = data.find(item => item.venueName == "广州亚运城综合体育馆")
                 // 看折扣
                 let discount = result.discountInfo.num
-                // 弹窗
-                chrome.notifications.create('5201314',{
-                    type: 'basic',
-                    iconUrl: chrome.runtime.getURL("/public/icon.jpg"),
-                    title: '当前折扣',
-                    message: discount + '折'
-                }, (notificationId) => {
-                    if (chrome.runtime.lastError) {
-                        console.error('创建通知失败:', chrome.runtime.lastError.message);
-                    } else {
-                        console.log('通知创建成功，ID:', notificationId);
-                    }
-                })
+                // 看最低价格
+                let price = result.priceInfo.yuanNum
+                if (discount < 7) {
+                    // 弹窗
+                    chrome.notifications.create('5201314',{
+                        type: 'basic',
+                        iconUrl: chrome.runtime.getURL("/public/icon.jpg"),
+                        title: '当前折扣',
+                        message: discount + '折'
+                    }, (notificationId) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('创建通知失败:', chrome.runtime.lastError.message);
+                        } else {
+                            console.log('通知创建成功，ID:', notificationId);
+                        }
+                    })
+                } else if (price < 380) {
+                    chrome.notifications.create('5201315', {
+                        type: 'basic',
+                        iconUrl: chrome.runtime.getURL("/public/icon2.jpg"),
+                        title: '低价票出现',
+                        message: '价格是' + price
+                    }, (notificationId) => {
+                        if (chrome.runtime.lastError) {
+                            console.error('创建通知失败:', chrome.runtime.lastError.message);
+                        } else {
+                            console.log('通知创建成功，ID:', notificationId);
+                        }
+                    })
+                }
+
             }
         }, startTime);
     }

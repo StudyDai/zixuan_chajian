@@ -158,7 +158,31 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 }
 
 // 插入页面中
-onload = () => {    
+onload = () => {  
+    // 直接发起
+    if(/http:\/\/localhost:8080/.test(location.href)) {
+        chrome.runtime.sendMessage({
+            message: 'DHL_shipping'
+        })
+    }
+    // 匹配tk音频
+    let tkurl = /https:\/\/tiktokvoice\.net\/zh/  
+    if (tkurl.test(location.href)) {
+        // 进来了,直接插入下载按钮
+        let div = document.createElement('div')
+        // 设置类名
+        div.classList.add('download_tk_btn')
+        // 推进去
+        document.body.appendChild(div)
+        // 绑
+        div.onclick = function() {
+            // 拿到audio
+            let au = document.querySelector('audio')
+        }
+    }
+    // let global_script = scripts
+    // 这个script里面应该有个SKU
+    // let script_contain = global_script.innerHTML
     // 如果是进入了摩天轮,那么就请求这个地址
     const mtlReg = /https:\/\/m\.motianlun\.cn\/uni\/package\-functional\-pages\/search\/search/
     if (mtlReg.test(location.href)) {
@@ -316,6 +340,15 @@ onload = () => {
         let btn5 = document.createElement('div')
         btn5.classList.add('downloadAliexpressByOms')
         btn5.innerText = '导出为Excel表格(派派)'
+        let btn6 = document.createElement('div')
+        btn6.classList.add('downloadAliexpressByOrder')
+        btn6.innerText = '拦截发货订单表格'
+        let btn7 = document.createElement('div')
+        btn7.classList.add('downloadAliexpressByOrder2')
+        btn7.innerText = '导出发货订单表格'
+        let btn8 = document.createElement('div')
+        btn8.classList.add('downloadAliexpressSendOrder')
+        btn8.innerText = '导出为Excel表格(发送的订单)'
         btn3.onclick = function() {
             chrome.runtime.sendMessage({
                 message: 'download_aliexpress_order',
@@ -328,11 +361,20 @@ onload = () => {
                 data: localStorage.getItem('cacheAliexpressByOms')
             })
         }
+        btn8.onclick = function() {
+            chrome.runtime.sendMessage({
+                message: 'download_aliexpress_send_order_byoms',
+                data: localStorage.getItem('cacheAliExpressSendOrder')
+            })
+        }
         document.body.appendChild(btn)
         document.body.appendChild(btn2)
         document.body.appendChild(btn3)
         document.body.appendChild(btn4)
         document.body.appendChild(btn5)
+        document.body.appendChild(btn6)
+        document.body.appendChild(btn7)
+        document.body.appendChild(btn8)
     }
     const re = /https:\/\/csp\.aliexpress\.com\/m_apps\/logistics/
     if (re.test(location.href)) {
@@ -809,7 +851,8 @@ onload = () => {
 
     // 发个事件给background.js
     chrome.runtime.sendMessage({
-        message: 'getRate'
+        message: 'getRate',
+        href: location.href
     })
     // 接收background.js的事件
     chrome.runtime.onMessage.addListener(async (res, render, sendResponse) => {

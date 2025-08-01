@@ -3,17 +3,65 @@ console.log('成功植入浏览器,现在window已经是同一个,可以进行�
 const OriginalXMLHttpRequest = window.XMLHttpRequest;
 let list = []
 let timer = null
+let startSave = false
+let saveList = []
 let my_xhr = null, isCollect = false, collectData = false
 const flag = localStorage.getItem('start_look') ? JSON.parse(localStorage.getItem('start_look')) : false
 const requestMap = {
 
 }
+let listMap = {}
+console.log(window.rawData, '看看')
+let reg = /https:\/\/www\.temu\.com/
+if (reg.test(location.href)) {
+// 如果是进入详情页 就会有这个玩意
+let btn = document.createElement('button')
+btn.style.position = 'fixed'
+btn.style.top = '100px'
+btn.style.right = '50px'
+btn.style.zIndex = '9999'
+btn.innerText = '点击记录一次'
+// 下载的按钮
+let downloadBtn = document.createElement('button')
+downloadBtn.style.position = 'fixed'
+downloadBtn.style.top = '150px'
+downloadBtn.style.right = '50px'
+downloadBtn.style.zIndex = '9999'
+downloadBtn.innerText = '下载记录数据'
+btn.onclick = function() {
+    if (window.rawData) {
+        // 发给background
+        chrome.runtime.sendMessage('nniceknhnmnjjhakclikapdojinhiblb', {
+            message: 'saveCurrentSkuPrice',
+            skuList: window.rawData.store.sku,
+            goodId: window.rawData.store.goodsId
+        })
+    }
+}
+downloadBtn.onclick = function() {
+    chrome.runtime.sendMessage('nniceknhnmnjjhakclikapdojinhiblb', {
+        message: 'downloadTEMUDetailData'
+    })
+}
+document.body.appendChild(btn)
+document.body.appendChild(downloadBtn)
+}
+
+
 if (flag) {
+    // 在这个地方请求会咋样
+    fetch('https://api-eu.dhl.com/track/shipments?trackingNumber=CH100315047DE',{
+        method: 'get',
+        headers: {
+            'DHL-API-Key': 'Rxt8wcpVhfCrmQSAcMV6opzkydei7eev'
+        }
+    })
     console.log(flag)
     // 重写 XMLHttpRequest 构造函数
     window.XMLHttpRequest = function () {
         const temureg = /https:\/\/www\.temu\.com\/search_result\.html/
         if (temureg.test(location.href)) {
+            // 插入一个可以导出数据的玩意
             // 这个地方插入一个按钮
             const divEl = document.createElement('div')
             divEl.style.position = 'fixed'
@@ -49,11 +97,13 @@ if (flag) {
             requestUrl = data
             // 如果是我要的分仓地址,那么就保存数据到本地
             // 看看我的temu的"/api/poppy/v1/search?scene=search"
-            console.log(requestUrl)
             // https://seller-acs.aliexpress.com/h5/mtop.asf.local.supply.fulfillment.shipping.fulfill.record.get/1.0/
             let reg = /seller-acs\.aliexpress\.com\/h5\/mtop\.asf\.local\.supply\.fulfillment\.shipping\.fulfill\.record\.get\/1\.0\//
             let reg2 = /api\/shipout-shipment\/shipment\/getShipmentByOrderId/
             let reg3 = /api\/poppy\/v1\/search\?scene=search/
+            let reg4 = /https:\/\/tools\.usps\.com\/go\/TrackConfirmAction/
+            let reg5 = /seller-acs\.aliexpress\.com\/h5\/mtop\.asf\.local\.supply\.fulfillment\.shipping\.package\.record\.get\/1\.0/
+            console.log(requestUrl,'这些都是地址')
             // temu的拿产品路径
             // let temuReg = /https:\/\/www\.temu\.com\/api\/poppy\/v1\/search\?scene=search/
             if (reg.test(requestUrl[1])) {
@@ -63,8 +113,14 @@ if (flag) {
                 haveSave = true
             } else if (reg3.test(requestUrl[1])) {
                 requestMap.list_el = xhr
-            } else if (collectData) {
-                
+            } else if (reg4.test(requestUrl[1])) {
+                // console.log('嘿嘿,我有东西', requestUrl)
+            } else if (reg5.test(requestUrl[1])) {
+                if (startSave) {
+                    console.log('把这个数据存起来')
+                    let uuid = new Date().getTime()
+                    listMap[uuid] = xhr
+                }
             }
             originalOpen.call(this, ...data)
         }
@@ -95,6 +151,10 @@ if (flag) {
         let down = document.querySelector('.downloadWork')
         // 这个是下载派派的
         let downPaiPai = document.querySelector('.downloadWorkByOms')
+        // 这个是下载发货的
+        let send = document.querySelector('.downloadAliexpressByOrder')
+        // 下载发货的
+        let down_send = document.querySelector('.downloadAliexpressByOrder2')
         if (work) {
             down.onclick = function() {
                 console.log('这就是我抓到的数据', list)
@@ -156,6 +216,29 @@ if (flag) {
                     // 循环结束导出
                     localStorage.setItem('cacheAliexpressByOms',JSON.stringify(xlsxData))
                 }
+            }
+            send.onclick = function() {
+                // 第一次点击的时候会激活
+                if (!startSave) {
+                    startSave = true
+                }
+                // 这个地方直接就是看下存了啥先
+                let key = Object.keys(listMap)
+                let val = listMap[key[0]]
+                // 格式化掉
+                let resp = JSON.parse(val.responseText)
+                let value = resp.data.data.dataSource
+                for (let index = 0; index < value.length; index++) {
+                    const element = value[index];
+                    saveList.unshift([element.tradeOrderId, element.packageItemVOList[0].itemCode, element.serviceCode, element.trackingNumber,element.packageStatusDesc,element.receiverName, element.receiverCountry, element.receiverProvince, element.receiverCity, element.receiverAddressDetail, element.receiverZip, element.receiverMobile])
+                }
+                console.log('当前数据', saveList)
+                // 这个地方要把对象清空
+                listMap = {}
+            }
+            down_send.onclick = function() {
+                saveList.unshift(['订单号','产品SKU','物流','运单号','订单状态','用户名','目标国家','目标州/省','目标城市','目标地址1','目标邮编','买家电话'])
+                localStorage.setItem('cacheAliExpressSendOrder', JSON.stringify(saveList))
             }
         } 
     }

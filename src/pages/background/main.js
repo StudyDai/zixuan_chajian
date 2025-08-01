@@ -242,6 +242,7 @@ const STATECODE_TO_WAREHOUSEMAP = {
 const BAO_LIANG_ZHU_CANGKU_MAP = {
     '美东特拉华仓': '美东TD海外仓'
 }
+let temu_url = ''
 // 发货时的产品的尺寸数据
 let sendOrderData = null
 // 11.5一公斤 1000g
@@ -359,6 +360,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             '美元': '人民币',
             '欧元': '人民币'
         }
+        temu_url = params.href
         let result_obj = []
         for (let index = 0; index < Object.keys(money_obj).length; index++) {
             const result = await getRate(Object.keys(money_obj)[index]);    
@@ -375,6 +377,18 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             currentActiveId = currentWindow.id
             MessageToWindow(currentWindow.id, 'rate', result_obj)
         })
+
+
+        // 在这里发请求给USPS看看怎么个事
+        // const resp = await fetch('https://tools.usps.com/go/TrackConfirmAction?tRef=fullpage&tLc=2&text28777=&tLabels=9234690394062300008848%2C&tABt=false', {
+        //     method: 'get',
+        //     credentials: 'include',
+        // }).then(res => res.text())
+        // // 调用底层API
+        // const parser = new DOMParser()
+        // const doc = parser.parseFromString(resp.data, 'text/html')
+        // console.log(doc, '这是结果')
+
     } else if (params.message === 'getAbroadStock') {
         // 证明进来的这个地方是要去发送请求,拿到我shipout的token,一般一次就是24小时,先从本地拿
         accountList = localStorage.getItem('accountList')
@@ -494,6 +508,18 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                                     }
                                 }
                             } else {
+                                // 这个地方匹配到了,得看看有没有SKU,如果有有的话,要设置成SKU的
+                                if (item.sku.trim() && Number.isNaN(+item.sku)) {
+                                    return {
+                                        ItemName: item.sku,
+                                        ItemSku: item.sku.replace(/@/, ''),
+                                        ItemStock: item.available,
+                                        subItemList: [{
+                                            warehouseName: item.warehouseName,
+                                            omsAvailableQuantity: item.available
+                                        }]
+                                    }
+                                }
                                 return {
                                     ItemName: item.name,
                                     ItemSku: reg.exec(item.name)[0].replace(/@/, ''),
@@ -524,6 +550,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 }
                 // console.log(PaiPaiResult, '派派的数据')
             }
+            console.log(xiaomiData, '库存')
             MessageToWindow(currentActiveId, 'StockInfo', {
                 statu: 200,
                 msg: "库存信息获取成功",
@@ -546,7 +573,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         myHeader.append('Content-Type', 'application/json')
         // const one_url = 'https://pftka-us.temu.com/pmm/api/pmm/defined'
         let url = ''
-        if (/us/g.test(location.href))  {
+        if (/us/g.test(temu_url))  {
             url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
         } else {
             url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
@@ -616,7 +643,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             })
             // 这个地方要分辨是美国的还是加拿大的
             let order_url = ''
-            if (/us/g.test(location.href)) {
+            if (/us/g.test(temu_url)) {
                 // 有就进来,是美国    
                 order_url = 'https://agentseller-us.temu.com/kirogi/bg/mms/recentOrderList'
             } else {
@@ -675,7 +702,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 console.log('当前找到的', currentOrder, item, globalOrderList)
                 // 在这里还要拿到用户的信息
                 let user_url = ''
-                if (/us/g.test(location.href)) {
+                if (/us/g.test(temu_url)) {
                     // 有就进来,是美国    
                     user_url = 'https://agentseller-us.temu.com/mms/orchid/address/snapshot/order_shipping_address_query'
                 } else {
@@ -773,7 +800,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         }
         // 去请求pdf地址
         let pdf_url = ''
-        if (/us/g.test(location.href)) {
+        if (/us/g.test(temu_url)) {
             // 有就进来,是美国    
             pdf_url = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
         } else {
@@ -838,7 +865,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 header.append('Mallid', currentMallId)
                 header.append('content-type', 'application/json')
                 let url2 = ''
-                if (/us/g.test(location.href)) {
+                if (/us/g.test(temu_url)) {
                     // 有就进来,是美国    
                     url2 = 'https://agentseller-us.temu.com/mms/eagle/package/batch_print_shipping_label'
                 } else {
@@ -1800,7 +1827,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                     })
                     console.log('格式化之后的所有活动出单都在这里', activitySaleList)
                     // 这个地方要拿面单
-                    if (/us/g.test(location.href))  {
+                    if (/us/g.test(temu_url))  {
                         url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
                     } else {
                         url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
@@ -2579,7 +2606,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             }
         }
     } else if (params.message == 'getWarehouseOder') {
-        if (/us/g.test(location.href))  {
+        if (/us/g.test(temu_url))  {
             url = 'https://agentseller-us.temu.com/mms/eagle/package/main_batch_query'
         } else {
             url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
@@ -2946,6 +2973,37 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // 要多加一行
         let xlsxData = JSON.parse(params.data)
         xlsxData.unshift(["订单号","参考号","平台","发货仓库","面单类型","物流","运单号","商品 SKU","商品单价","数量","订单金额","币种","货主","收件人","手机号","邮箱","邮政编码","国家","省 / 州","市 / 府","区 / 县","详细地址","详细地址 2"])
+        let warehouseList = ['派派仓-纽约', '派派仓-迈阿密', '派派仓-达拉斯', '派派仓-洛杉矶']
+        xlsxData.forEach(d => {
+            // 拿到邮编
+            let code = d[16]
+            if (code.length != 5) {
+                return
+            }
+            // 判断
+            switch(Math.floor(code / 10000)) {
+                case 0:
+                case 1:
+                case 2:
+                    d[3] = warehouseList[0]
+                    break;
+                case 3:
+                    d[3] = warehouseList[1]
+                    break;
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                    d[3] = warehouseList[2]
+                    break;
+                case 8:
+                case 9:
+                    d[3] = warehouseList[3]
+                    break;
+                default:
+                    console.log('邮编有问题,直接不填')
+            }
+        })
         const wb = XLSX.utils.book_new()
         // 生成excel对应的数据
         const ws = XLSX.utils.aoa_to_sheet(xlsxData)
@@ -3096,6 +3154,17 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
 
             }
         }, startTime);
+    } else if (params.message == 'DHL_shipping') {
+    } else if (params.message == 'download_aliexpress_send_order_byoms') {
+        // 这个地方是拿到请求到的数据的
+        let data = JSON.parse(params.data)
+        console.log(data,'嗯?')
+        let wb = XLSX.utils.book_new()
+        let ws = XLSX.utils.aoa_to_sheet(data)
+        let d = new Date()
+        XLSX.utils.book_append_sheet(wb, ws, `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)
+        // 导出
+        XLSX.writeFile(wb, `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}导出海外托管运输中订单.xlsx`)
     }
 })
 // 分单词的函数
@@ -3159,6 +3228,7 @@ async function countWordFrequency(title, frequencyMap = {}) {
 
 // 这个是和网页进行通讯用的 注意 manifest一定得写 "externally_connectable" 里面表明哪些网站可以通信
 // 然后你的网页的chrome就会多一个runtime 这个runtime发送的信息得用下面这个messageexternal来收,这样就可以实现网页和插件通信了
+let downloadData = []
 chrome.runtime.onMessageExternal.addListener(async (params, sender, sendResponse) => {
     const XLSX = require('xlsx')
     if (params.message === 'demo') {
@@ -3191,6 +3261,22 @@ chrome.runtime.onMessageExternal.addListener(async (params, sender, sendResponse
         XLSX.utils.book_append_sheet(wb, ws, '关键词库-' + params.word)
         // 保存出去
         XLSX.writeFile(wb, '关键词/关键词.xlsx')
+    } else if (params.message == 'saveCurrentSkuPrice') {
+        // 这里就是拿到SKU
+        params.skuList.forEach(item => {
+            downloadData.push([item.specs[0].specValue, item.normalPriceStr, '', '',''])
+        })
+    } else if (params.message == 'downloadTEMUDetailData') {
+        // 导出xlsx表
+        let wb = XLSX.utils.book_new()
+        // 创建数据
+        downloadData.unshift(['规格名称', '前台价格','活动价格',formatTime() + '订单量','广告roi'])
+        console.log(downloadData)
+        let ws = XLSX.utils.aoa_to_sheet(downloadData)
+        // 加入数据
+        XLSX.utils.book_append_sheet(wb, ws, formatTime(new Date(),'MM-DD') + '数据统计表')
+        // 导出数据
+        XLSX.writeFile(wb, '数据统计表.xlsx')
     }
 })
 

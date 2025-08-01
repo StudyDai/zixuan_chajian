@@ -258,7 +258,9 @@ ul.hide {
 }
 
 .getNetwork, .downloadWork,
-.downloadWorkByOms {
+.downloadWorkByOms,
+.downloadAliexpressByOrder,
+.downloadAliexpressByOrder2 {
     padding: 10px;
     color: red;
     font-size: 18px;
@@ -272,6 +274,14 @@ ul.hide {
     top: 200px;
     color: blue;
 }
+.downloadAliexpressByOrder {
+    top: 250px;
+    color: purple;
+}
+.downloadAliexpressByOrder2 {
+    top: 300px;
+    color: pink;
+}
 .downloadWork {
     top: 150px;
     color:green;
@@ -282,7 +292,11 @@ ul.hide {
     left: 0;
     bottom: 100px;
 }
-
+.downloadAliexpressSendOrder {
+    position: fixed;
+    left: 0;
+    bottom: 200px;
+}
 
 .download_shipout {
     position: fixed;

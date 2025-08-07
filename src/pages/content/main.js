@@ -156,7 +156,7 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
                  .replace(/mm/, minutes)
                  .replace(/ss/, seconds);
 }
-
+let USPSTrackList = []
 // 插入页面中
 onload = () => {  
     // 直接发起
@@ -164,6 +164,77 @@ onload = () => {
         chrome.runtime.sendMessage({
             message: 'DHL_shipping'
         })
+    }
+    // 插入一个可以拿到数据的按钮
+    if (/https:\/\/t\.17track\.net\/zh\-cn/.test(location.href)) {
+        // 插入按钮
+        let getDataBtn = document.createElement('div')
+        let updateBtn = document.createElement('div')
+        let saveBtn = document.createElement('div')
+        getDataBtn.classList.add('trackBtn')
+        updateBtn.classList.add('updateBtn')
+        saveBtn.classList.add('saveBtn')
+        getDataBtn.innerText = '点击记录物流信息'
+        updateBtn.innerText = '刷新物流信息存储表'
+        saveBtn.innerText = '保存'
+        updateBtn.onclick = function() {
+            USPSTrackList = []
+            chrome.runtime.sendMessage({
+                message: 'reset_track_order'
+            })
+        }
+        saveBtn.onclick = function() {
+            // 发送给background
+            chrome.runtime.sendMessage({
+                message: 'download_track_order',
+                data: USPSTrackList
+            })
+        }
+        getDataBtn.onclick = function() {
+            let contain = document.querySelector('.jcTrackContainer')
+            // 拿到孩子
+            let children = contain.querySelectorAll('.tracklist-item')
+            // 循环
+            for (let index = 0; index < children.length; index++) {
+                const element = children[index];
+                let details = element.querySelector('.tracklist-details')
+                let header = element.querySelector('.tracklist-header')
+                let icon = header.querySelector('.btn-icon')
+                if (!details) {
+                    // 如果拿到了,证明已经有轨迹了,存起来
+                    USPSTrackList = USPSTrackList.concat({
+                        'trackId': element.id.replace('tn-', ''),
+                        'trackMsg': '暂无轨迹',
+                        'trackTime': '暂无时间',
+                        'arriveTime': '暂无预计送达时间',
+                        'trackingStatu': '暂未到达USPS仓库'
+                    })
+                    continue
+                }
+                let currentStatu = element.querySelector('.trn-block .new')
+                let timer = currentStatu.querySelector('time')
+                let message = currentStatu.querySelector('p')
+                let arriveTime = element.querySelector('.estimated-time')
+                // 如果拿到了,证明已经有轨迹了,存起来
+                USPSTrackList = USPSTrackList.concat({
+                    'trackId': element.id.replace('tn-', ''),
+                    'trackMsg': message.innerText,
+                    'trackTime': timer.innerText,
+                    'arriveTime': arriveTime.innerText,
+                    'trackingStatu': icon.title
+                })
+            }
+            // 看看效果 要保存,然后点击刷新的时候要导出
+            console.log('效果', USPSTrackList)
+            // 给background,因为压根不会咋样
+            chrome.runtime.sendMessage({
+                message: 'cacheTrackList',
+                data: USPSTrackList
+            })
+        }
+        document.body.appendChild(getDataBtn)
+        document.body.appendChild(updateBtn)
+        document.body.appendChild(saveBtn)
     }
     // 匹配tk音频
     let tkurl = /https:\/\/tiktokvoice\.net\/zh/  
@@ -1326,6 +1397,7 @@ onload = () => {
         const url = 'https://pcpc.jfwms.net/web/dashboard'
         const currentUrl = location.href
         if(currentUrl == url) {
+            console.log(document.cookie)
             // 证明是,那就发送自定义事件,并将当前的Cookie组装好发过去
             chrome.runtime.sendMessage({
                 message: 'dianxiaomicookie',

@@ -19,6 +19,7 @@
         <button @click="getAllGoodAndActivity" :disabled="CanClick">开启记录</button>
         <button @click="getCurrentActivity('download')">导出记录</button>
         <button @click="getCurrentOrder">获取当月面单</button>
+        <button @click="getPaiOrder">获取派派所有仓库费用</button>
         <button @click="getOrderByAccount">根据回款匹配订单</button>
         <button @click="startNetWorkLook">开启网络监听</button>
         <button @click="endNetWorkLook">关闭网络监听</button>
@@ -196,6 +197,12 @@ export default {
     }
   },
   methods: {
+    getPaiOrder() {
+      // 发请求
+      chrome.runtime.sendMessage({
+        message: 'paipai_order'
+      })
+    },
     copyVal(event) {
       event.preventDefault()
       navigator.clipboard.writeText('SKU-仓库-数量')

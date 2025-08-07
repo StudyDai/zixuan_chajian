@@ -206,6 +206,7 @@ const ffmpeg = createFFmpeg({
     log: true, // 是否在控制台打印日志，true => 打印
 })
 console.log('background is open')
+let USPSTrackList = []
 let currentActiveId = 0
 let stockAllInfo = []
 let currentCookie = ''
@@ -214,6 +215,13 @@ let PaiPaiWareHouse = []
 let haveTime = ''
 let currentCode = ''
 let goodListCookie = ''
+let PaiPaiWarehouseList = {
+    '迈阿密': 1214,
+    '洛杉矶': 1131,
+    '达拉斯': 1215,
+    '纽约': 1216,
+    '新泽西': 1421
+}
 const PRODUCTCODE_TO_INFOMAP = {
     'USA-100': {
         'weight': 1.8,
@@ -349,10 +357,49 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
     if (!ffmpeg.isLoaded()) {
         await ffmpeg.load(); // 如果未加载，则加载
     }
-    chrome.cookies.getAll({ url: "https://seller.kuajingmaihuo.com" }, function (cookies) {
+    // 进来就去请求看看
+    // setTimeout(async () => {
+    //     let trackHeader = new Headers()
+    //     trackHeader.append('cookie', localStorage.getItem('17TrackCookie'))
+    //     trackHeader.append('content-type', 'application/x-www-form-urlencoded; charset=UTF-8')
+    //     let resp = await fetch('https://t.17track.net/track/restapi', {
+    //         method: 'post',
+    //         credentials: 'include',
+    //         headers: trackHeader,
+    //         body: JSON.stringify({
+    //             data: [{
+    //                 "num": "9234690388111100038117",
+    //                 "fc": 0,
+    //                 "sc":0
+    //             }],
+    //             "guid": "",
+    //             "timeZoneOffset": -480
+    //         })
+    //     }).then(res => {
+    //         console.log('结果', res)
+    //     })
+    // }, 5000);
+    chrome.cookies.getAll({ url: "https://agentseller.temu.com/goods/list" }, function (cookies) {
         console.log("Cookies for www.example.com:", cookies)
         goodListCookie = cookies.map(item => `${item.name}=${item.value}`).join(';')
     })
+    chrome.cookies.getAll({ url: "https://t.17track.net"}, function(cookies) {
+        let str = []
+        cookies.forEach(cookie => {
+            str.push(`${cookie.name}=${cookie.value}`)
+        })
+        localStorage.setItem('17TrackCookie', JSON.stringify(str.join(';')))
+    })
+    chrome.cookies.getAll({ url: "https://pcpc.jfwms.net/" }, function(cookies) {
+        let str = []
+        cookies.forEach(cookie => {
+            str.push(`${cookie.name}=${cookie.value}`)
+        })
+        localStorage.setItem('dianxiaomicookie', JSON.stringify(str.join(';')))
+    })
+    function autoAddZero(num) {
+        return num < 10 ? '0' + num : num
+    }
     // mergeTsToMp4([], 'mergedVideo.mp4');
     if (params.message === 'getRate') {
         // 现在要美元和欧元
@@ -389,6 +436,174 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // const doc = parser.parseFromString(resp.data, 'text/html')
         // console.log(doc, '这是结果')
 
+    } else if (params.message === 'cacheTrackList') {
+        // 保存起来
+        USPSTrackList.push(params.data)
+    } else if (params.message === 'reset_track_order') {
+        USPSTrackList = []
+    } else if (params.message === 'download_track_order') {
+        console.log('看看', params.data)
+        // 导出
+        let xlsxData = [['运单号', '物流商轨迹', '当前轨迹对应的时间', '预计送达时间']]
+        params.data.forEach(item => {
+            xlsxData.push([item.trackId, item.trackMsg, item.trackTime, item.arriveTime])
+        })
+        // 导出
+        const wb = XLSX.utils.book_new()
+        // 数据
+        const ws = XLSX.utils.aoa_to_sheet(xlsxData)
+        // 加载
+        XLSX.utils.book_append_sheet(wb, ws, '所有订单的物流轨迹')
+        // 导出
+        XLSX.writeFile(wb, '当前在途USPS订单详情导出.xlsx')
+    } else if (params.message == 'paipai_order') {
+        let billData = [['PN号', '费用', '仓库']]
+        let today = new Date()
+        let beginTIme = `${today.getFullYear()}-${autoAddZero(today.getMonth())}-01`
+        let endTime = `${today.getFullYear()}-${autoAddZero(today.getMonth() + 1)}-${autoAddZero(today.getDate())}`
+        let PaiPaiHeader = new Headers()
+        const xiaomiCookie = localStorage.getItem('dianxiaomicookie')
+        PaiPaiHeader.append('cookie', xiaomiCookie)
+        PaiPaiHeader.append('Content-Type', 'application/json;charset=UTF-8')
+        let warehouseNames = Object.keys(PaiPaiWarehouseList)
+        let warehouseId = Object.values(PaiPaiWarehouseList)
+        async function getMenuList(index, pageSize = 1) {
+            const PaiPaiResult = await fetch('https://pcpc.jfwms.net/oms/fee/pageList', {
+                method: 'POST',
+                credentials: 'include',
+                body: JSON.stringify({
+                    "documentType": "",
+                    "inquireType": 2,
+                    "searchType": "feeNo",
+                    "searchContent": "",
+                    "beginTime": beginTIme,
+                    "endTime": endTime,
+                    "warehouseId": warehouseId[index],
+                    "timeType": "createTime",
+                    "paidStatus": "",
+                    "billStatus": "",
+                    "orderBy": "chargingTime",
+                    "desc": 1,
+                    "pageNo": pageSize,
+                    "pageSize": 300,
+                    "erpNo": ""
+                  }),
+                headers: PaiPaiHeader
+            }).then(res => res.json())
+            if (PaiPaiResult.success) {
+                // 进来看看 totalPage
+                let resp = PaiPaiResult.data.page.totalPage
+                // 不管他在不在 这个地方的数据就是哟啊格式化掉 因为我等会要导出,所以不用管那么多就是留一个物流的名称合约一个物流运单号还有一个收费即可
+                PaiPaiResult.data.page.rows.forEach(item => {
+                    billData.push([item.documentNo, item.totalAmount, item.warehouseName])
+                })
+                if (resp) {
+                    // 证明有很多的数据 并不止三百条数据, 那么这个地方又要循环一次
+                    for (let second_index = pageSize + 1; second_index <= resp; second_index++) {
+                        // 又要重复请求一次,那么这个地方的请求就要写成一个函数,不然的话 这个地方不知道咋搞
+                        await delayFn()
+                        // 切换第二页
+                        await getMenuList(index, second_index)
+                    }
+                }
+            } else {
+                console.log('请求有问题,看看是咋回事')
+            }
+        }
+        async function getForzeBill(Size = 1) {
+            const PaiPaiResult = await fetch("https://pcpc.jfwms.net/oms/home/frozen/bill", {
+                method: 'post',
+                body: JSON.stringify({
+                    "warehouseId": "",
+                    "inquireType": 2,
+                    "searchType": "packageNo",
+                    "searchContent": "",
+                    "pageNo": 1,
+                    "pageSize": 300
+                  }),
+                headers: PaiPaiHeader
+            }).then(res => res.json())
+            if (PaiPaiResult.success) {
+                // 进来看看 totalPage
+                let resp = PaiPaiResult.data.page.totalPage
+                // 不管他在不在 这个地方的数据就是哟啊格式化掉 因为我等会要导出,所以不用管那么多就是留一个物流的名称合约一个物流运单号还有一个收费即可
+                PaiPaiResult.data.page.rows.forEach(item => {
+                    billData.push([item.documentNo, item.frozenFunds, item.warehouseName])
+                })
+                if (resp) {
+                    for (let second_index = 2; second_index <= resp; second_index++) {
+                        await delayFn()
+                        // 切换第二页
+                        await getForzeBill(Size + 1)
+                    }  
+                }
+            } else {
+                console.log('请求有问题,看看是咋回事')
+            }
+        }
+        if (xiaomiCookie) {
+            for (let index = 0; index < warehouseNames.length; index++) {
+                await getMenuList(index)
+            }   
+            await getForzeBill()
+        }
+        // 这个地方要请求我的所有发出去的单子
+        let sendUrl = 'https://pcpc.jfwms.net/oms/order/list'
+        // orderNo packageNo logisticsName createTime trackingNo warehouseName skuList / sku
+        let order_list = [['订单号', '包裹号/PN号', '使用的物流', '订单创建时间', '运单号', '发送仓', '发送的产品', '运费']]
+        let startRowNum = 2
+        let oneSheetName = `${today.getMonth()}-${today.getMonth() + 1}账单`        
+        async function getAllOrder(Size = 1) {
+            const PaiPaiResult = await fetch(sendUrl, {
+                method: 'post',
+                body: JSON.stringify({
+                    "logisticsIds": [],
+                    "statusList": [],
+                    "platformList": [
+                      "aliExpress"
+                    ],
+                    "queryMenu": 1,
+                    "timeType": "createTime",
+                    "inquireType": 0,
+                    "searchType": "orderNo",
+                    "searchContent": "",
+                    "warehouseId": "",
+                    "logisticsStatusList": [],
+                    "logisticsTrackExceptionList": [],
+                    "timeBegin": beginTIme,
+                    "timeEnd": endTime,
+                    "pageNo": Size,
+                    "pageSize": 300
+                }),
+                headers: PaiPaiHeader
+            }).then(res => res.json())
+            if (PaiPaiResult.success) {
+                // 进来看看 totalPage
+                let resp = PaiPaiResult.data.page.totalSize
+                // 不管他在不在 这个地方的数据就是哟啊格式化掉 因为我等会要导出,所以不用管那么多就是留一个物流的名称合约一个物流运单号还有一个收费即可
+                PaiPaiResult.data.page.rows.forEach(item => {
+                    // =VLOOKUP(A2，'7-8账单'!A:C)
+                    let skuName = item.skuList.map(s => s.sku).join(',')
+                    order_list.push([item.orderNo, item.packageNo, item.logisticsName, item.createTime, item.trackingNo, item.warehouseName, skuName, `=VLOOKUP(B${startRowNum++},'${oneSheetName}'!A:C,2,FALSE)`])
+                })
+                if (resp) {
+                    if (Size * PaiPaiResult.data.page.pageSize < resp) {
+                        await delayFn()
+                        await getAllOrder(Size + 1)
+                    }
+                }
+            } else {
+                console.log('请求有问题,看看是咋回事')
+            }
+        }
+        // 这个地方去拿,只有一次
+        await getAllOrder()
+        const wb = XLSX.utils.book_new()
+        const ws = XLSX.utils.aoa_to_sheet(billData)
+        const ws2 = XLSX.utils.aoa_to_sheet(order_list)
+        XLSX.utils.book_append_sheet(wb, ws, oneSheetName)
+        XLSX.utils.book_append_sheet(wb, ws2, '速卖通订单')
+        XLSX.writeFile(wb, '速卖通派派发货账单.xlsx')
     } else if (params.message === 'getAbroadStock') {
         // 证明进来的这个地方是要去发送请求,拿到我shipout的token,一般一次就是24小时,先从本地拿
         accountList = localStorage.getItem('accountList')
@@ -561,7 +776,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // 我拿到了,看看Cookie是多少
         console.log(params.cookie)
         // 只要拿到了,就把Cookie存储起来
-        localStorage.setItem('dianxiaomicookie', params.cookie)
+        // localStorage.setItem('dianxiaomicookie', params.cookie)
     } else if (params.message == 'downloadFile') {
         // 拿到了
         console.log('拿到了', params)

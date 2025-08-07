@@ -349,3 +349,24 @@ ul.hide {
     color: green;
     z-index: 9999;
 }
+.trackBtn,.updateBtn,.saveBtn {
+    position: fixed;
+    top: 10px;
+    right: 200px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 9999;
+    background-color: rgb(102, 102, 238);
+    color: #fff;
+    padding: 5px 8px;
+}
+.updateBtn {
+    right: 20px;
+    margin-left: 20px;
+    background-color: rgb(233, 131, 131);
+}
+.saveBtn {
+    right: 340px;
+    background-color: rgb(179, 235, 179);
+}

@@ -6,6 +6,8 @@ let timer = null
 let startSave = false
 let saveList = []
 let my_xhr = null, isCollect = false, collectData = false
+let xlsxData = []
+let isWork = false
 const flag = localStorage.getItem('start_look') ? JSON.parse(localStorage.getItem('start_look')) : false
 const requestMap = {
 
@@ -157,8 +159,6 @@ if (flag) {
         let down_send = document.querySelector('.downloadAliexpressByOrder2')
         if (work) {
             down.onclick = function() {
-                console.log('这就是我抓到的数据', list)
-                let xlsxData = []
                 if (list.length) {
                     // 证明有单子 那么就开始循环
                     for (let index = 0; index < list.length; index++) {
@@ -175,15 +175,25 @@ if (flag) {
                                 xlsxData = xlsxData.concat([[item.tradeOrderId, item.fulfillmentOrderItemList[0].itemCode, num, '','',item.receiverName, '', item.receiverAddressDetail, '', item.receiverProvince, item.receiverCity, item.receiverZip, item.receiverCountry, item.receiverMobile, '', 'Service with Lowest Estimate Rate', 'USPS', 'No Sign Required/ Service Default', '美西']])
                             }
                     }
-                    // 循环结束导出
-                    localStorage.setItem('cacheAliexpress',JSON.stringify(xlsxData))
                 }
             }
             work.onclick = function() {
+                isWork = !isWork
+                // 再点一次的时候导出
+                if (!isWork) {
+                    // 这个是维赢的
+                    localStorage.setItem('cacheAliexpress',JSON.stringify(xlsxData))
+                    // 这个是paipai的
+                    localStorage.setItem('cacheAliexpressByOms',JSON.stringify(xlsxData))
+                }
                 console.log('我来了', my_xhr)
                 // 这个地方点击才开始去收集
                 isCollect = true
                 timer && clearInterval(timer)
+                if (!isWork) {
+                    clearInterval(timer)
+                    return
+                }
                 timer = setInterval(() => {
                     if (my_xhr.responseText) {
                         let data = JSON.parse(my_xhr.responseText)
@@ -201,8 +211,7 @@ if (flag) {
                 }, 2000);
             }
             downPaiPai.onclick = function() {
-                console.log('这就是我抓到的数据', list)
-                let xlsxData = []
+                console.log('这就是我抓到的数据', xlsxData)
                 if (list.length) {
                     // 证明有单子 那么就开始循环
                     for (let index = 0; index < list.length; index++) {
@@ -213,8 +222,6 @@ if (flag) {
                             // 这个地方去调用邮编帮我算吧 哎~
                             xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'usps-手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY','',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
                     }
-                    // 循环结束导出
-                    localStorage.setItem('cacheAliexpressByOms',JSON.stringify(xlsxData))
                 }
             }
             send.onclick = function() {
@@ -230,14 +237,18 @@ if (flag) {
                 let value = resp.data.data.dataSource
                 for (let index = 0; index < value.length; index++) {
                     const element = value[index];
-                    saveList.unshift([element.tradeOrderId, element.packageItemVOList[0].itemCode, element.serviceCode, element.trackingNumber,element.packageStatusDesc,element.receiverName, element.receiverCountry, element.receiverProvince, element.receiverCity, element.receiverAddressDetail, element.receiverZip, element.receiverMobile])
+                    let sendDate = new Date(element.tradeCreateTime)
+                    let createDate = new Date(element.packageCreateTime)
+                    let format_sendDate = `${sendDate.getFullYear()}年${sendDate.getMonth() + 1}月${sendDate.getDate()}日`
+                    let format_createDate = `${createDate.getFullYear()}年${createDate.getMonth() + 1}月${createDate.getDate()}日`
+                    saveList.unshift([element.tradeOrderId, format_sendDate,format_createDate, element.packageItemVOList[0].itemCode, element.serviceCode, element.trackingNumber,element.packageStatusDesc,element.receiverName, element.receiverCountry, element.receiverProvince, element.receiverCity, element.receiverAddressDetail, element.receiverZip, element.receiverMobile])
                 }
                 console.log('当前数据', saveList)
                 // 这个地方要把对象清空
                 listMap = {}
             }
             down_send.onclick = function() {
-                saveList.unshift(['订单号','产品SKU','物流','运单号','订单状态','用户名','目标国家','目标州/省','目标城市','目标地址1','目标邮编','买家电话'])
+                saveList.unshift(['订单号', '包裹下单时间','包裹发货时间', '产品SKU','物流','运单号','订单状态','用户名','目标国家','目标州/省','目标城市','目标地址1','目标邮编','买家电话'])
                 localStorage.setItem('cacheAliExpressSendOrder', JSON.stringify(saveList))
             }
         } 

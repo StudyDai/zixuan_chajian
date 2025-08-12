@@ -159,6 +159,18 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 let USPSTrackList = []
 // 插入页面中
 onload = () => {  
+    // 监听我的复制
+    document.addEventListener('contextmenu', function(event) {
+        // 拿到我当前点击的图片的src
+        let imgEl = event.target
+        console.log(imgEl)
+        if (imgEl.tagName === 'IMG') {
+            chrome.runtime.sendMessage({
+                message: 'copy',
+                data: imgEl.src
+            })
+        }
+    })
     // 直接发起
     if(/http:\/\/localhost:8080/.test(location.href)) {
         chrome.runtime.sendMessage({
@@ -200,7 +212,8 @@ onload = () => {
                 let details = element.querySelector('.tracklist-details')
                 let header = element.querySelector('.tracklist-header')
                 let icon = header.querySelector('.btn-icon')
-                if (!details) {
+                let currentStatu = element.querySelector('.trn-block .new')
+                if (!details || !currentStatu) {
                     // 如果拿到了,证明已经有轨迹了,存起来
                     USPSTrackList = USPSTrackList.concat({
                         'trackId': element.id.replace('tn-', ''),
@@ -211,7 +224,6 @@ onload = () => {
                     })
                     continue
                 }
-                let currentStatu = element.querySelector('.trn-block .new')
                 let timer = currentStatu.querySelector('time')
                 let message = currentStatu.querySelector('p')
                 let arriveTime = element.querySelector('.estimated-time')
@@ -950,6 +962,26 @@ onload = () => {
                 // 这个地方要发消息给我的后台,后台去拿
                 // 添加成功
                 alert(res.data.msg)
+            }
+        }
+
+        // 这里是接受图片的base的
+        else if (res.type === 'copyvalue') {
+            console.log('这是数据', res.data)
+            let blob = await fetch(res.data).then(function(res) { return res.blob() })
+            console.log(blob.type, blob.size)
+            // 重新转blob
+            document.onclick = async function() {
+                const clipboardItem = new ClipboardItem({ 'image/png': blob})
+                document.onclick = function() {
+                    navigator.clipboard.write([clipboardItem]).then(function() {
+                        console.log('canvas内容已经复制')
+                        // 点击事件去掉
+                        document.onclick = null
+                    }).catch(function(err) {
+                        console.log('出现问题', err)
+                    })
+                }
             }
         }
 

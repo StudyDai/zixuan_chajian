@@ -436,17 +436,52 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         // const doc = parser.parseFromString(resp.data, 'text/html')
         // console.log(doc, '这是结果')
 
-    } else if (params.message === 'cacheTrackList') {
-        // 保存起来
-        USPSTrackList.push(params.data)
+    } else if(params.message == 'copy') {
+        function copyImage(element) {
+            const cvs = document.createElement('canvas')
+            cvs.width = element.width
+            cvs.height = element.height
+            const ctx = cvs.getContext('2d')
+            ctx.drawImage(element, 0, 0, element.width, element.height)
+            cvs.toBlob(function(blob) {
+                console.log('看看数据', blob)
+                // 回传
+                let reader = new FileReader()
+                reader.onload = (event) => {
+                    MessageToWindow(currentActiveId, 'copyvalue', reader.result)
+                }
+                reader.readAsDataURL(blob)
+            })
+        }
+        let imgEl = document.createElement('img')
+        imgEl.src = params.data
+        imgEl.onload = function() {
+            copyImage(imgEl)
+        }
+    }else if (params.message === 'cacheTrackList') {
+        // 保存起来 本地也存储,每次点击的时候存储到本地
+        // 每次进来先拿
+        let uspsList = localStorage.getItem('uspsList')
+        if (uspsList) {
+            // 存在 开始存
+            USPSTrackList = JSON.parse(uspsList)
+        }
+        USPSTrackList.push(...params.data)
+        localStorage.setItem('uspsList', JSON.stringify(USPSTrackList))
     } else if (params.message === 'reset_track_order') {
         USPSTrackList = []
+        localStorage.setItem('uspsList', [])
     } else if (params.message === 'download_track_order') {
-        console.log('看看', params.data)
+        let uspsList = localStorage.getItem('uspsList')
+        let allData = []
+        if (uspsList) {
+            // 存在 开始存
+            allData = JSON.parse(uspsList)
+        }
         // 导出
-        let xlsxData = [['运单号', '物流商轨迹', '当前轨迹对应的时间', '预计送达时间']]
-        params.data.forEach(item => {
-            xlsxData.push([item.trackId, item.trackMsg, item.trackTime, item.arriveTime])
+        let xlsxData = [['运单号', '物流商轨迹', '当前轨迹对应的时间', '预计送达时间', '当前状态']]
+        allData.forEach(item => {
+            xlsxData.push([item.trackId, item.trackMsg, item.trackTime, item.arriveTime, item.trackingStatu])
         })
         // 导出
         const wb = XLSX.utils.book_new()

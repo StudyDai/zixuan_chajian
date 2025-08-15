@@ -159,18 +159,18 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 let USPSTrackList = []
 // 插入页面中
 onload = () => {  
-    // 监听我的复制
-    document.addEventListener('contextmenu', function(event) {
-        // 拿到我当前点击的图片的src
-        let imgEl = event.target
-        console.log(imgEl)
-        if (imgEl.tagName === 'IMG') {
-            chrome.runtime.sendMessage({
-                message: 'copy',
-                data: imgEl.src
-            })
-        }
-    })
+    // 监听我的复制 目前还没办法实现直接复制到文件夹 先不用了
+    // document.addEventListener('contextmenu', function(event) {
+    //     // 拿到我当前点击的图片的src
+    //     let imgEl = event.target
+    //     console.log(imgEl)
+    //     if (imgEl.tagName === 'IMG') {
+    //         chrome.runtime.sendMessage({
+    //             message: 'copy',
+    //             data: imgEl.src
+    //         })
+    //     }
+    // })
     // 直接发起
     if(/http:\/\/localhost:8080/.test(location.href)) {
         chrome.runtime.sendMessage({
@@ -965,25 +965,25 @@ onload = () => {
             }
         }
 
-        // 这里是接受图片的base的
-        else if (res.type === 'copyvalue') {
-            console.log('这是数据', res.data)
-            let blob = await fetch(res.data).then(function(res) { return res.blob() })
-            console.log(blob.type, blob.size)
-            // 重新转blob
-            document.onclick = async function() {
-                const clipboardItem = new ClipboardItem({ 'image/png': blob})
-                document.onclick = function() {
-                    navigator.clipboard.write([clipboardItem]).then(function() {
-                        console.log('canvas内容已经复制')
-                        // 点击事件去掉
-                        document.onclick = null
-                    }).catch(function(err) {
-                        console.log('出现问题', err)
-                    })
-                }
-            }
-        }
+        // 这里是接受图片的base的 这个是实现图片复制功能的 暂时用不到
+        // else if (res.type === 'copyvalue') {
+        //     console.log('这是数据', res.data)
+        //     let blob = await fetch(res.data).then(function(res) { return res.blob() })
+        //     console.log(blob.type, blob.size)
+        //     // 重新转blob
+        //     document.onclick = async function() {
+        //         const clipboardItem = new ClipboardItem({ 'image/png': blob})
+        //         document.onclick = function() {
+        //             navigator.clipboard.write([clipboardItem]).then(function() {
+        //                 console.log('canvas内容已经复制')
+        //                 // 点击事件去掉
+        //                 document.onclick = null
+        //             }).catch(function(err) {
+        //                 console.log('出现问题', err)
+        //             })
+        //         }
+        //     }
+        // }
 
         // 这个事件是监听我是不是拿到所有的库存信息
         else if (res.type === 'StockInfo') {

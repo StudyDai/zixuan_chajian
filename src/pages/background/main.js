@@ -468,6 +468,34 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         }
         USPSTrackList.push(...params.data)
         localStorage.setItem('uspsList', JSON.stringify(USPSTrackList))
+    } else if (params.message === 'needStand') {
+        // 开始记时
+        let min = 40 * 60 * 1000
+        if (params.data) {
+            min = params.data * 60 * 1000
+        }
+        setTimeout(() => {
+            // 弹窗
+            // 生成唯一值
+            let id = 0
+            if (window.crypto && window.crypto.randomUUID) {
+                id = window.crypto.randomUUID()
+            } else {
+                id = new Date().getTime()
+            }
+            chrome.notifications.create(id,{
+                type: 'basic',
+                iconUrl: chrome.runtime.getURL("/public/icon.jpg"),
+                title: '久坐提醒',
+                message: '您已经久坐40分钟,请站立5-10分钟'
+            }, (notificationId) => {
+                if (chrome.runtime.lastError) {
+                    console.error('创建通知失败:', chrome.runtime.lastError.message);
+                } else {
+                    console.log('通知创建成功，ID:', notificationId);
+                }
+            })
+        }, min);
     } else if (params.message === 'reset_track_order') {
         USPSTrackList = []
         localStorage.setItem('uspsList', [])

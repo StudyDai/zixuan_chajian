@@ -16,6 +16,7 @@
     </div>
     <div v-if="hasPermission">
       <div class="getMoney">
+        <button @click="needStand">开始工作四十分钟</button>
         <button @click="getAllGoodAndActivity" :disabled="CanClick">开启记录</button>
         <button @click="getCurrentActivity('download')">导出记录</button>
         <button @click="getCurrentOrder">获取当月面单</button>
@@ -197,6 +198,11 @@ export default {
     }
   },
   methods: {
+    needStand() {
+      chrome.runtime.sendMessage({
+        message: 'needStand'
+      })
+    },
     getPaiOrder() {
       // 发请求
       chrome.runtime.sendMessage({

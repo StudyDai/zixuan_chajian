@@ -334,7 +334,7 @@ function formatTime(date = new Date(), format = 'YYYY-MM-DD HH:mm:ss') {
 let amazonVideoList = []
 
 // 直接监听
-
+// 直接就是要下载
 chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
     const XLSX = require('xlsx')
     /** @description demo */
@@ -1310,6 +1310,7 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                 const currentT = new Date().getTime()
                 for (let index = 0; index < params.downloadList.length; index++) {
                     const downloadItem = params.downloadList[index]
+                    console.log(downloadItem)
                     chrome.downloads.download({
                         url: downloadItem[size],
                         saveAs: false,

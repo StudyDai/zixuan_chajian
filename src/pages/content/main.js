@@ -554,7 +554,7 @@ onload = () => {
             downloadList[index] = {
                 imgName: '产品图' + (index+1) + '.jpg',
                 '180': href,
-                '800': href.replace(/w\/180/, 'w/800')
+                '800': href.replace(/\?imageView.*/, '')
             }
         }
         const get_btn = document.createElement('div')

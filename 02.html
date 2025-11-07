@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura Simplificada</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#64748b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .border-dashed {
+                border-style: dashed;
+            }
+            .invoice-shadow {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-2xl mx-auto bg-white p-6 md:p-10 rounded-lg invoice-shadow">
+        <!-- 标题区域 -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-primary mb-2">FACTURA SIMPLIFICADA</h1>
+            <p class="text-secondary">Invoice / 发票</p>
+        </div>
+        
+        <!-- 发票编号和日期 -->
+        <div class="flex flex-col md:flex-row justify-between mb-6 pb-4 border-b border-gray-200">
+            <div>
+                <p class="text-sm text-gray-500">Número de pedido / 订单编号</p>
+                <p class="font-medium">8203649391889753</p>
+            </div>
+            <div class="mt-3 md:mt-0">
+                <p class="text-sm text-gray-500">Fecha / 日期</p>
+                <p class="font-medium">18/08/2025</p>
+            </div>
+        </div>
+        
+        <!-- 收发信息 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <p class="font-semibold text-gray-700 mb-2">Remitente / 发货方</p>
+                <p>广州市手指头电子商务有限公司</p>
+                <p class="text-sm text-gray-600">szt20171218@163.com</p>
+            </div>
+            <div>
+                <p class="font-semibold text-gray-700 mb-2">Destinatario / 收货方</p>
+                <p>Kevin Aguiñada ShipIt</p>
+                <p class="text-sm text-gray-600">1690 NW 108th Ave Unit 150</p>
+                <p class="text-sm text-gray-600">Sweetwater, Florida, US</p>
+            </div>
+        </div>
+        
+        <!-- 运输信息 -->
+        <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+            <p class="font-semibold text-gray-700 mb-3 flex items-center">
+                <i class="fa fa-truck text-primary mr-2"></i>
+                Información de Envío / 运输信息
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Número de Seguimiento / 运输单号</p>
+                    <p class="font-medium">9234690397743100090376</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Compañía de Envío / 物流公司</p>
+                    <p class="font-medium">USPS</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 商品明细 -->
+        <div class="mb-8">
+            <p class="font-semibold text-gray-700 mb-3 flex items-center">
+                <i class="fa fa-box text-primary mr-2"></i>
+                Detalle de Productos / 商品明细
+            </p>
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50">
+                        <th class="py-2 px-3 text-left rounded-l-lg">Producto / 商品名称</th>
+                        <th class="py-2 px-3 text-center" style="width: 135px;">Cantidad / 数量</th>
+                        <th class="py-2 px-5 text-right rounded-r-lg" style="width: 190px;">Precio Total / 总价</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-t border-gray-100">
+                        <td class="py-3 px-5">Juego de destornilladores de trinquete multifunción VMAN 66 en 1, Mini Kit de herramientas de reparación con puntas magnéticas múltiples, herramienta doméstica para PC y escritorio, Etc.</td>
+                        <td class="py-3 px-3 text-center">1</td>
+                        <td class="py-3 px-3 text-right">$22.84</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 总计 -->
+        <div class="flex justify-end mb-6">
+            <div class="w-full md:w-1/3">
+                <div class="flex justify-between py-2 border-t border-dashed border-gray-300">
+                    <span class="font-semibold">Total / 总计</span>
+                    <span class="font-bold text-primary text-lg">$22.84</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 备注 -->
+        <div class="text-xs text-gray-500 italic text-center">
+            <p>Esta factura se usa solo para confirmar el precio del producto y el número de seguimiento.</p>
+            <p>本发票仅用于确认商品价格及运输单号。</p>
+        </div>
+    </div>
+</body>
+</html>

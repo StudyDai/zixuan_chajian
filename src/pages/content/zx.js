@@ -151,7 +151,7 @@ if (flag) {
         let work = document.querySelector('.getNetwork')
         // 这个是下载维赢的
         let down = document.querySelector('.downloadWork')
-        // 这个是下载派派的
+        // 这个是下载派派的 
         let downPaiPai = document.querySelector('.downloadWorkByOms')
         // 这个是下载发货的
         let send = document.querySelector('.downloadAliexpressByOrder')
@@ -220,7 +220,7 @@ if (flag) {
                             let num = item.partialPackagedRate.split('/')[1]
                             let code = item.receiverZip[0]
                             // 这个地方去调用邮编帮我算吧 哎~
-                            xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'usps-手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY','',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
+                            xlsxData = xlsxData.concat([[item.tradeOrderId, '', 'aliExpress','仓库名称', '发货仓库面单', 'USPS-广州手指头','', item.fulfillmentOrderItemList[0].itemCode,'100',item.fulfillmentOrderItemList[0].quantity,'100','CNY','',item.receiverName,item.receiverMobile,'', item.receiverZip, item.receiverCountry, item.receiverProvince,item.receiverCity,'',item.receiverAddressDetail]])
                     }
                 }
             }

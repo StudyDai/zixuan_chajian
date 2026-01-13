@@ -856,11 +856,29 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         } else {
             url = 'https://agentseller.temu.com/mms/eagle/package/main_batch_query'
         }
-        const response = await fetch(url, {
+        let response, opacity_data = [];
+        console.log('来了哦')
+        for (let index = 0; index < 1; index++) {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: myHeader,
+                body: JSON.stringify({
+                    "page_number": 1,
+                    "page_size": 200,
+                    "sort_type": 1,
+                    // "call_begin_time": 1737289443,
+                    // "call_end_time": 1739881443
+                })
+            }).then(res => res.json())
+            if (response.success) {
+                opacity_data.push(...response.result.package_info_result_list)
+            }
+        }
+        response = await fetch(url, {
             method: 'POST',
             headers: myHeader,
             body: JSON.stringify({
-                "page_number": 1,
+                "page_number": 2,
                 "page_size": 200,
                 "sort_type": 1,
                 // "call_begin_time": 1737289443,
@@ -909,7 +927,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         }
         const dirName = formatTime(new Date(), 'MM月DD日HH时mm分')
         if (response.success) {
-            format_Data = response.result.package_info_result_list.filter((item, index) => {
+            opacity_data.push(...response.result.package_info_result_list)
+            format_Data = opacity_data.filter((item, index) => {
                 if (params.data.includes(item.order_send_info_list[0].parent_order_sn)) {
                     console.log(item, index)
                     return true
@@ -2139,6 +2158,13 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
                         "call_begin_time": new Date('2025-02-01 00:00:00').getTime() / 1000,
                         "call_end_time": new Date('2025-03-18 23:59:59').getTime() / 1000
                     })
+                    await getMianDanData(url, miandan_order, {
+                        "page_number": 2,
+                        "page_size": 200,
+                        "sort_type": 1,
+                        "call_begin_time": new Date('2025-02-01 00:00:00').getTime() / 1000,
+                        "call_end_time": new Date('2025-03-18 23:59:59').getTime() / 1000
+                    })
                     console.log(miandan_order)                   
                     // 这个就是已经发走的
                     if (orderList.length) {
@@ -2894,11 +2920,28 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
         myHeader.set('mallid', currentMallId)
         myHeader.set('cookie', currentCookie)
         myHeader.set('Content-Type', 'application/json')
-        const response = await fetch(url, {
+        let response, opacity_data = [];
+        for (let index = 0; index < 1; index++) {
+            response = await fetch(url, {
+                method: 'POST',
+                headers: myHeader,
+                body: JSON.stringify({
+                    "page_number": 1,
+                    "page_size": 200,
+                    "sort_type": 1,
+                    "call_begin_time": new Date('2025-5-1').getTime() / 1000,
+                    "call_end_time": new Date('2025-5-31').getTime() / 1000
+                })
+            }).then(res => res.json())
+            if (response.success) {
+                opacity_data.push(...response.result.package_info_result_list)
+            }
+        }
+        response = await fetch(url, {
             method: 'POST',
             headers: myHeader,
             body: JSON.stringify({
-                "page_number": 1,
+                "page_number": 2,
                 "page_size": 200,
                 "sort_type": 1,
                 "call_begin_time": new Date('2025-5-1').getTime() / 1000,
@@ -2918,7 +2961,8 @@ chrome.runtime.onMessage.addListener(async (params, sender, sendResponse) => {
             // 生成excel,包含订单号和货号
             let Data = [['订单创建时间', '订单号', '数量', 'spu', '货号', '运单号', '物流公司', '预计运费', '单位']]
             let status = result.statu
-            response.result.package_info_result_list.forEach(item => {
+            opacity_data.push(...response.result.package_info_result_list)
+            opacity_data.forEach(item => {
                 let HuoHao = null, goodName = null
                 if (status === 200) {
                     HuoHao = result.data.find(resp => resp.productSkuSummaries.find(sku => {
